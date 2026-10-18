@@ -1,0 +1,272 @@
+// Phone repair service — domain schema (BE-14 / BE-21).
+// Status / type columns are VarChar backed by the TypeScript enums in
+// src/common/enums and src/domain (same pattern as the base project).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Auth & RBAC ─────────────────────────────
+
+model User {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  username             String                 @unique @map("username") @db.VarChar(80)
+  passwordHash         String                 @map("password_hash") @db.VarChar(255)
+  fullName             String                 @map("full_name") @db.VarChar(150)
+  role                 String                 @map("role") @db.VarChar(30)
+  // RN-14: a CUSTOMER user is bound to exactly one customer record.
+  customerId           String?                @unique @map("customer_id") @db.Uuid
+  isActive             Boolean                @default(true) @map("is_active")
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer             Customer?              @relation(fields: [customerId], references: [id])
+  revokedRefreshTokens RevokedRefreshToken[]
+  receivedWorkOrders   WorkOrder[]            @relation("WorkOrderReceptionist")
+  assignedWorkOrders   WorkOrder[]            @relation("WorkOrderTechnician")
+  statusAudits         WorkOrderStatusAudit[]
+  stockMovements       StockMovement[]
+  unlockCodeAccesses   UnlockCodeAccessLog[]
+
+  @@index([role, isActive])
+  @@map("users")
+}
+
+// Server-side refresh token revocation (denylist with TTL), kept from base.
+model RevokedRefreshToken {
+  jti       String   @id @map("jti")
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime @default(now()) @map("revoked_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("revoked_refresh_tokens")
+}
+
+// ──────────────────────────── Device Registry ───────────────────────────
+
+model Customer {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  identification String      @unique @map("identification") @db.VarChar(50)
+  name           String      @map("name") @db.VarChar(150)
+  phone          String?     @map("phone") @db.VarChar(30)
+  email          String?     @map("email") @db.VarChar(150)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           User?
+  devices        Device[]
+  workOrders     WorkOrder[]
+
+  @@map("customers")
+}
+
+// Catalog of commercial models; anchors spare part compatibility (RN-10).
+model DeviceModel {
+  id              String                   @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  brand           String                   @map("brand") @db.VarChar(60)
+  model           String                   @map("model") @db.VarChar(80)
+  isActive        Boolean                  @default(true) @map("is_active")
+  devices         Device[]
+  compatibleParts SparePartCompatibility[]
+
+  @@unique([brand, model])
+  @@map("device_models")
+}
+
+model Device {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  // RN-02: 15 digits, Luhn-valid, unique.
+  imei          String      @unique @map("imei") @db.Char(15)
+  deviceModelId String      @map("device_model_id") @db.Uuid
+  customerId    String      @map("customer_id") @db.Uuid
+  color         String?     @map("color") @db.VarChar(40)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  deviceModel   DeviceModel @relation(fields: [deviceModelId], references: [id])
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  workOrders    WorkOrder[]
+
+  @@index([customerId])
+  @@map("devices")
+}
+
+// ────────────────────────────── Work Orders ─────────────────────────────
+
+model WorkOrder {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  // Human-facing sequential code (OT-000123) printed on the intake ticket.
+  number               Int                    @unique @default(autoincrement()) @map("number")
+  deviceId             String                 @map("device_id") @db.Uuid
+  customerId           String                 @map("customer_id") @db.Uuid
+  receptionistId       String                 @map("receptionist_id") @db.Uuid
+  technicianId         String?                @map("technician_id") @db.Uuid
+  status               String                 @default("RECEIVED") @map("status") @db.VarChar(30)
+  reportedProblem      String                 @map("reported_problem") @db.Text
+  preliminaryDiagnosis String?                @map("preliminary_diagnosis") @db.Text
+  // RN-01: intake check-in snapshot.
+  batteryLevel         Int?                   @map("battery_level") @db.SmallInt
+  cosmeticCheckIn      Json                   @map("cosmetic_check_in")
+  // RN-03: lock type + AES-256-GCM ciphertext (iv:tag:data). Never plaintext.
+  lockType             String                 @map("lock_type") @db.VarChar(20)
+  unlockCodeCipher     String?                @map("unlock_code_cipher") @db.Text
+  promisedAt           DateTime?              @map("promised_at") @db.Timestamptz(6)
+  deliveredAt          DateTime?              @map("delivered_at") @db.Timestamptz(6)
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  device               Device                 @relation(fields: [deviceId], references: [id])
+  customer             Customer               @relation(fields: [customerId], references: [id])
+  receptionist         User                   @relation("WorkOrderReceptionist", fields: [receptionistId], references: [id])
+  technician           User?                  @relation("WorkOrderTechnician", fields: [technicianId], references: [id])
+  budgets              Budget[]
+  statusAudits         WorkOrderStatusAudit[]
+  stockMovements       StockMovement[]
+  unlockCodeAccesses   UnlockCodeAccessLog[]
+
+  @@index([deviceId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([technicianId, status])
+  @@index([customerId])
+  @@map("work_orders")
+}
+
+// RN-12: insert-only audit trail of every status change. UPDATE/DELETE are
+// rejected at database level by a trigger (prisma/sql/immutable-audit.sql).
+model WorkOrderStatusAudit {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  workOrderId    String    @map("work_order_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  previousStatus String    @map("previous_status") @db.VarChar(30)
+  newStatus      String    @map("new_status") @db.VarChar(30)
+  reason         String?   @map("reason") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  workOrder      WorkOrder @relation(fields: [workOrderId], references: [id])
+  user           User      @relation(fields: [userId], references: [id])
+
+  @@index([workOrderId, createdAt])
+  @@map("work_order_status_audits")
+}
+
+// RN-03: every reveal of a device unlock code is recorded (append-only).
+model UnlockCodeAccessLog {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  workOrderId String    @map("work_order_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([workOrderId, createdAt])
+  @@map("unlock_code_access_logs")
+}
+
+// ─────────────────────────── Budgets / Estimates ────────────────────────
+
+// Versioned: a re-budget supersedes the previous version (append-only).
+model Budget {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  workOrderId     String       @map("work_order_id") @db.Uuid
+  version         Int          @map("version") @db.SmallInt
+  status          String       @default("DRAFT") @map("status") @db.VarChar(20)
+  laborSubtotal   Decimal      @map("labor_subtotal") @db.Decimal(12, 2)
+  partsSubtotal   Decimal      @map("parts_subtotal") @db.Decimal(12, 2)
+  total           Decimal      @map("total") @db.Decimal(12, 2)
+  currency        String       @default("BOB") @map("currency") @db.Char(3)
+  // RN-08: an expired budget cannot be approved.
+  expiresAt       DateTime     @map("expires_at") @db.Timestamptz(6)
+  sentAt          DateTime?    @map("sent_at") @db.Timestamptz(6)
+  decidedAt       DateTime?    @map("decided_at") @db.Timestamptz(6)
+  decidedBy       String?      @map("decided_by") @db.Uuid
+  decisionChannel String?      @map("decision_channel") @db.VarChar(20)
+  rejectionReason String?      @map("rejection_reason") @db.Text
+  createdBy       String       @map("created_by") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  workOrder       WorkOrder    @relation(fields: [workOrderId], references: [id])
+  items           BudgetItem[]
+
+  @@unique([workOrderId, version])
+  @@index([workOrderId, status])
+  @@index([status, expiresAt])
+  @@map("budgets")
+}
+
+model BudgetItem {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  budgetId          String     @map("budget_id") @db.Uuid
+  itemType          String     @map("item_type") @db.VarChar(20)
+  description       String     @map("description") @db.VarChar(255)
+  sparePartId       String?    @map("spare_part_id") @db.Uuid
+  quantity          Int        @map("quantity") @db.SmallInt
+  unitPrice         Decimal    @map("unit_price") @db.Decimal(12, 2)
+  subtotal          Decimal    @map("subtotal") @db.Decimal(12, 2)
+  // RN-09: PENDING → RESERVED (enter IN_REPAIR) → CONSUMED (enter QC) | RELEASED.
+  reservationStatus String     @default("PENDING") @map("reservation_status") @db.VarChar(20)
+  budget            Budget     @relation(fields: [budgetId], references: [id])
+  sparePart         SparePart? @relation(fields: [sparePartId], references: [id])
+
+  @@index([budgetId])
+  @@index([sparePartId])
+  @@map("budget_items")
+}
+
+// ───────────────────────── Spare Parts Inventory ────────────────────────
+
+model SparePart {
+  id              String                   @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  sku             String                   @unique @map("sku") @db.VarChar(50)
+  name            String                   @map("name") @db.VarChar(150)
+  category        String                   @map("category") @db.VarChar(30)
+  unitCost        Decimal                  @map("unit_cost") @db.Decimal(12, 2)
+  workshopPrice   Decimal                  @map("workshop_price") @db.Decimal(12, 2)
+  // Invariant: availableStock = physicalStock - reservedStock (never < 0).
+  physicalStock   Int                      @default(0) @map("physical_stock")
+  reservedStock   Int                      @default(0) @map("reserved_stock")
+  availableStock  Int                      @default(0) @map("available_stock")
+  // RN-11: low-stock alert threshold.
+  minStock        Int                      @default(0) @map("min_stock")
+  isActive        Boolean                  @default(true) @map("is_active")
+  lastMovementAt  DateTime                 @default(now()) @map("last_movement_at") @db.Timestamptz(6)
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  compatibilities SparePartCompatibility[]
+  budgetItems     BudgetItem[]
+  stockMovements  StockMovement[]
+
+  @@index([category])
+  @@index([name])
+  @@index([availableStock, minStock])
+  @@map("spare_parts")
+}
+
+// RN-10: many-to-many part ↔ device model compatibility.
+model SparePartCompatibility {
+  sparePartId   String      @map("spare_part_id") @db.Uuid
+  deviceModelId String      @map("device_model_id") @db.Uuid
+  sparePart     SparePart   @relation(fields: [sparePartId], references: [id])
+  deviceModel   DeviceModel @relation(fields: [deviceModelId], references: [id])
+
+  @@id([sparePartId, deviceModelId])
+  @@index([deviceModelId])
+  @@map("spare_part_compatibilities")
+}
+
+// BE-17: insert-only kardex. type: IN | RESERVE | RELEASE | OUT | ADJUSTMENT.
+model StockMovement {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @map("id") @db.Uuid
+  sparePartId String     @map("spare_part_id") @db.Uuid
+  workOrderId String?    @map("work_order_id") @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  type        String     @map("type") @db.VarChar(20)
+  quantity    Int        @map("quantity") @db.SmallInt
+  reason      String?    @map("reason") @db.Text
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  sparePart   SparePart  @relation(fields: [sparePartId], references: [id])
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id])
+  user        User       @relation(fields: [userId], references: [id])
+
+  @@index([sparePartId, createdAt(sort: Desc)])
+  @@index([workOrderId])
+  @@map("stock_movements")
+}

@@ -1,0 +1,16 @@
+{
+  "name": "servicio-tecnico-celulares",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "install:all": "npm install --prefix servicio_back",
+    "dev": "npm run start:dev --prefix servicio_back",
+    "build": "npm run build --prefix servicio_back",
+    "test": "npm test --prefix servicio_back",
+    "precommit": "./scripts/hooks/hook-pre-commit.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "husky": "^9.1.7"
+  }
+}

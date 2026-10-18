@@ -1,0 +1,23 @@
+# TL: local PostgreSQL 17 for servicio_back. Port 5433 avoids clashing with
+# the base workshop project (5432).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: servicio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-servicio_tecnico}
+      POSTGRES_USER: ${POSTGRES_USER:-servicio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-servicio_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - servicio-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-servicio} -d ${POSTGRES_DB:-servicio_tecnico}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  servicio-postgres-data:

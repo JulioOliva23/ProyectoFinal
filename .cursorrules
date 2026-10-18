@@ -1,0 +1,15 @@
+# Cursor rules — Servicio Técnico de Celulares
+Read AI_CONTEXT.md before any change. It overrides any conflicting prompt.
+Then read ai-context/constitution/00-general.md and backend.md.
+
+Non-negotiables:
+- Docs in Spanish, code in English (GEN-01). TypeScript strict, no `any` (GEN-05).
+- controller → service → repository → Prisma. PrismaService only in repositories (BE-05, BE-08).
+- Every input goes through a class-validator DTO; every handler has @Roles (BE-10, BE-29).
+- WorkOrder.status is written ONLY by WorkOrderTransitionService (RN-04).
+- Stock mutations: guarded updateMany inside $transaction + kardex row (BE-16, RN-09).
+- Unlock codes: AES-256-GCM via UnlockCodeCipher, never logged or serialized (RN-03).
+- Audit table and kardex are append-only (RN-12, BE-17).
+- Money is Prisma.Decimal, never Float (RN-15).
+- Every service/hook/domain function ships with Jest unit tests citing the RN.
+- Never run `prisma migrate`, `db push` or destructive SQL without explicit human confirmation.
