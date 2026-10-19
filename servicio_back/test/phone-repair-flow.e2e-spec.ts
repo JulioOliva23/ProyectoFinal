@@ -296,6 +296,56 @@ describe('Phone repair flow (e2e)', () => {
     });
   });
 
+  // SUP-05: second customer access mode. The public endpoint allows 5
+  // requests/min per IP, so this block makes exactly 5 and the 6th must be
+  // throttled. Keep the order and the count if you add cases here.
+  describe('Public tracking by work order number + tracking code (SUP-05)', () => {
+    let number: number;
+    let trackingCode: string;
+    let workOrderId: string;
+    const track = (body: object) => http().post('/api/v1/public/tracking').send(body);
+
+    beforeAll(async () => {
+      const created = await http().post('/api/v1/work-orders').set(as('recep')).send(intake(909)).expect(201);
+      ({ number, trackingCode, id: workOrderId } = created.body);
+      expect(trackingCode).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+      expect(trackingCode.replace('-', '')).not.toBe('4821');
+    });
+
+    it('never stores the code in plaintext nor returns it again', async () => {
+      const row = await prisma.workOrder.findUniqueOrThrow({ where: { id: workOrderId } });
+      expect(row.trackingCodeHash).toMatch(/^\$argon2/);
+      const detail = await http().get(`/api/v1/work-orders/${workOrderId}`).set(as('recep')).expect(200);
+      expect(JSON.stringify(detail.body)).not.toContain(trackingCode.replace('-', ''));
+      expect(detail.body).not.toHaveProperty('trackingCodeHash');
+    });
+
+    it('returns only the customer status view, without a session (1/5)', async () => {
+      const ticketNumber = `OT-${String(number).padStart(6, '0')}`;
+      const response = await track({ number: ticketNumber, trackingCode: trackingCode.toLowerCase() }).expect(200);
+      expect(Object.keys(response.body).sort()).toEqual(['budgetTotal', 'device', 'id', 'number', 'promisedAt', 'status', 'statusLabel', 'updatedAt']);
+      expect(response.body).toMatchObject({ number, status: 'RECEIVED', statusLabel: 'Ingresado' });
+    });
+
+    it('gives the same 404 for a wrong code and an unknown number (2/5, 3/5)', async () => {
+      const wrong = await track({ number, trackingCode: 'ZZZZ-ZZZZ' }).expect(404);
+      const unknown = await track({ number: 2_000_000_000, trackingCode }).expect(404);
+      expect(wrong.body.message).toBe(unknown.body.message);
+    });
+
+    it('invalidates the previous code when a new one is issued (4/5, 5/5)', async () => {
+      await http().post(`/api/v1/work-orders/${workOrderId}/tracking-code/regenerate`).set(as('tech')).expect(403);
+      const regenerated = await http().post(`/api/v1/work-orders/${workOrderId}/tracking-code/regenerate`).set(as('recep')).expect(200);
+      await track({ number, trackingCode }).expect(404);
+      await track({ number, trackingCode: regenerated.body.trackingCode }).expect(200);
+      trackingCode = regenerated.body.trackingCode;
+    });
+
+    it('throttles the 6th attempt within a minute', async () => {
+      await track({ number, trackingCode }).expect(429);
+    });
+  });
+
   describe('Customer view (RN-14)', () => {
     it('lists only status information for the customer', async () => {
       const response = await http().get('/api/v1/work-orders/mine').set(as('customer')).expect(200);

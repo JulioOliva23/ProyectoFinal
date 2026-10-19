@@ -1,1 +1,4 @@
-npm test
+#!/usr/bin/env sh
+# Delegates to the versioned hook so CI and local runs share one script:
+# lint + typecheck + unit tests per staged package, and blocks staged .env files.
+exec "$(git rev-parse --show-toplevel)/scripts/hooks/hook-pre-commit.sh"

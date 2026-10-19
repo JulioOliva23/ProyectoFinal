@@ -5,6 +5,7 @@ import {
   UnprocessableEntityException,
   ConflictException,
 } from '@nestjs/common';
+import * as argon2 from 'argon2';
 import { UnlockCodeCipher } from '../../common/crypto/unlock-code-cipher';
 import { money } from '../../common/dto/money';
 import { Paginated } from '../../common/dto/pagination-query.dto';
@@ -13,20 +14,28 @@ import { WorkOrderStatus } from '../../common/enums/work-order-status.enum';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { allowedNextStatuses } from '../../domain/work-orders/work-order-state-machine';
 import { WORK_ORDER_STATUS_LABELS } from '../../domain/work-orders/work-order-status-labels';
+import { formatTrackingCode, generateTrackingCodeDistinctFrom } from '../../domain/work-orders/tracking-code';
+import { PublicTrackingRequestDto } from './dto/public-tracking.dto';
 import { DevicesService } from '../devices/devices.service';
 import { UsersService } from '../users/users.service';
 import { CosmeticCheckInDto, CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { AssignTechnicianDto, QueryWorkOrdersDto, UpdateDiagnosisDto } from './dto/work-order-actions.dto';
 import { LockType } from './dto/work-order-enums';
 import {
+  CreatedWorkOrderResponseDto,
   CustomerWorkOrderStatusDto,
+  TrackingCodeResponseDto,
   UnlockCodeResponseDto,
   WorkOrderAuditEntryDto,
   WorkOrderResponseDto,
 } from './dto/work-order.response.dto';
-import { WorkOrderDetailRow, WorkOrderRepository } from './repositories/work-order.repository';
+import { CustomerStatusRow, WorkOrderDetailRow, WorkOrderRepository } from './repositories/work-order.repository';
 
 // RN-06: a technician can be (re)assigned until the repair starts.
+// SUP-05: same message for "unknown number" and "wrong code" so a lookup
+// never reveals which work order numbers exist.
+const TRACKING_NOT_FOUND = 'Work order not found or tracking code is invalid';
+
 const ASSIGNABLE_STATUSES = [WorkOrderStatus.RECEIVED, WorkOrderStatus.IN_DIAGNOSIS, WorkOrderStatus.BUDGETED, WorkOrderStatus.APPROVED];
 
 @Injectable()
@@ -39,10 +48,14 @@ export class WorkOrdersService {
   ) {}
 
   // RN-01: intake. Device + customer + order are created atomically.
-  async create(dto: CreateWorkOrderDto, user: AuthenticatedUser): Promise<WorkOrderResponseDto> {
+  async create(dto: CreateWorkOrderDto, user: AuthenticatedUser): Promise<CreatedWorkOrderResponseDto> {
     if (dto.promisedAt && new Date(dto.promisedAt).getTime() <= Date.now()) {
       throw new UnprocessableEntityException('promisedAt must be in the future');
     }
+    // SUP-05: random code, distinct from the unlock code (RN-03), hashed
+    // outside the transaction because argon2 is deliberately slow.
+    const trackingCode = generateTrackingCodeDistinctFrom(dto.unlockCode);
+    const trackingCodeHash = await argon2.hash(trackingCode);
     const order = await this.repository.runInTransaction(async (transaction) => {
       const checkedIn = await this.devices.checkIn(transaction, dto.device, dto.customer);
       return this.repository.create(transaction, {
@@ -56,9 +69,31 @@ export class WorkOrdersService {
         // RN-03: encrypted before it reaches the repository.
         unlockCodeCipher: dto.unlockCode ? this.cipher.encrypt(dto.unlockCode) : null,
         promisedAt: dto.promisedAt ? new Date(dto.promisedAt) : null,
+        trackingCodeHash,
       });
     });
-    return toResponse(order);
+    return { ...toResponse(order), trackingCode: formatTrackingCode(trackingCode) };
+  }
+
+  // SUP-05: lost ticket. Issues a new code and invalidates the previous one.
+  async regenerateTrackingCode(id: string): Promise<TrackingCodeResponseDto> {
+    const order = await this.requireExisting(id);
+    const unlockCode = order.unlockCodeCipher ? this.cipher.decrypt(order.unlockCodeCipher) : undefined;
+    const trackingCode = generateTrackingCodeDistinctFrom(unlockCode);
+    await this.repository.setTrackingCodeHash(id, await argon2.hash(trackingCode));
+    return { trackingCode: formatTrackingCode(trackingCode) };
+  }
+
+  // SUP-05: anonymous lookup by work order number + tracking code.
+  async trackPublicly(dto: PublicTrackingRequestDto): Promise<CustomerWorkOrderStatusDto> {
+    const order = await this.repository.findForPublicTracking(dto.number);
+    // Verify against a dummy hash when there is nothing to compare, so the
+    // response time does not reveal whether the number exists.
+    const hash = order?.trackingCodeHash ?? (await dummyHash());
+    const matches = await argon2.verify(hash, dto.trackingCode).catch(() => false);
+    if (!order?.trackingCodeHash || !matches) throw new NotFoundException(TRACKING_NOT_FOUND);
+    // toCustomerStatus copies an explicit field list, so the hash never leaks.
+    return toCustomerStatus(order);
   }
 
   async list(query: QueryWorkOrdersDto, user: AuthenticatedUser): Promise<Paginated<WorkOrderResponseDto>> {
@@ -74,17 +109,7 @@ export class WorkOrdersService {
 
   async listForCustomer(user: AuthenticatedUser): Promise<CustomerWorkOrderStatusDto[]> {
     if (!user.customerId) throw new ForbiddenException('RN-14: account is not bound to a customer');
-    const rows = await this.repository.findForCustomer(user.customerId);
-    return rows.map((row) => ({
-      id: row.id,
-      number: row.number,
-      status: row.status as WorkOrderStatus,
-      statusLabel: WORK_ORDER_STATUS_LABELS[row.status as WorkOrderStatus],
-      device: `${row.device.deviceModel.brand} ${row.device.deviceModel.model}`,
-      promisedAt: row.promisedAt,
-      budgetTotal: money(row.budgets[0]?.total),
-      updatedAt: row.updatedAt,
-    }));
+    return (await this.repository.findForCustomer(user.customerId)).map(toCustomerStatus);
   }
 
   async assignTechnician(id: string, dto: AssignTechnicianDto): Promise<WorkOrderResponseDto> {
@@ -146,6 +171,26 @@ export class WorkOrdersService {
     }
     return order;
   }
+}
+
+let dummyHashPromise: Promise<string> | undefined;
+function dummyHash(): Promise<string> {
+  dummyHashPromise ??= argon2.hash('sup-05-timing-equalizer');
+  return dummyHashPromise;
+}
+
+// RN-14: single mapping for both customer access modes (SUP-05).
+function toCustomerStatus(row: CustomerStatusRow): CustomerWorkOrderStatusDto {
+  return {
+    id: row.id,
+    number: row.number,
+    status: row.status as WorkOrderStatus,
+    statusLabel: WORK_ORDER_STATUS_LABELS[row.status as WorkOrderStatus],
+    device: `${row.device.deviceModel.brand} ${row.device.deviceModel.model}`,
+    promisedAt: row.promisedAt,
+    budgetTotal: money(row.budgets[0]?.total),
+    updatedAt: row.updatedAt,
+  };
 }
 
 function toResponse(order: WorkOrderDetailRow): WorkOrderResponseDto {

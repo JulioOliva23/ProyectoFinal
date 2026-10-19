@@ -22,6 +22,24 @@ export const WORK_ORDER_DETAIL = {
   technician: { select: { id: true, fullName: true } },
 } as const;
 
+// RN-14: the only fields a customer (logged in or via tracking code) can see.
+export const CUSTOMER_STATUS_SELECT = {
+  id: true,
+  number: true,
+  status: true,
+  promisedAt: true,
+  updatedAt: true,
+  device: { select: { deviceModel: { select: { brand: true, model: true } } } },
+  budgets: {
+    where: { status: { in: ['SENT', 'APPROVED'] } },
+    orderBy: { version: 'desc' },
+    take: 1,
+    select: { total: true },
+  },
+} as const satisfies Prisma.WorkOrderSelect;
+
+export type CustomerStatusRow = Prisma.WorkOrderGetPayload<{ select: typeof CUSTOMER_STATUS_SELECT }>;
+
 export type WorkOrderDetailRow = Prisma.WorkOrderGetPayload<{ select: typeof WORK_ORDER_DETAIL }>;
 
 export interface WorkOrderFilter {
@@ -58,25 +76,18 @@ export class WorkOrderRepository {
   }
 
   // RN-14: customer view with the current (sent or approved) budget total.
-  findForCustomer(customerId: string) {
-    return this.prisma.workOrder.findMany({
-      where: { customerId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        number: true,
-        status: true,
-        promisedAt: true,
-        updatedAt: true,
-        device: { select: { deviceModel: { select: { brand: true, model: true } } } },
-        budgets: {
-          where: { status: { in: ['SENT', 'APPROVED'] } },
-          orderBy: { version: 'desc' },
-          take: 1,
-          select: { total: true },
-        },
-      },
-    });
+  findForCustomer(customerId: string): Promise<CustomerStatusRow[]> {
+    return this.prisma.workOrder.findMany({ where: { customerId }, orderBy: { createdAt: 'desc' }, select: CUSTOMER_STATUS_SELECT });
+  }
+
+  // SUP-05: the hash is read only to verify a public lookup; it never leaves
+  // the service.
+  findForPublicTracking(number: number) {
+    return this.prisma.workOrder.findUnique({ where: { number }, select: { ...CUSTOMER_STATUS_SELECT, trackingCodeHash: true } });
+  }
+
+  async setTrackingCodeHash(id: string, trackingCodeHash: string): Promise<void> {
+    await this.prisma.workOrder.update({ where: { id }, data: { trackingCodeHash } });
   }
 
   async assignTechnician(id: string, technicianId: string, assignableStatuses: string[]): Promise<boolean> {

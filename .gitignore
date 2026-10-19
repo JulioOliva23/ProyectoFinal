@@ -1,6 +1,24 @@
+# Dependencies
 node_modules/
 node_modules
+
+# Environment and local credentials (GEN-11)
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+.claude/settings.local.json
+
+# Build output and generated code (any package)
+dist/
+build/
+*.tsbuildinfo
+coverage/
+
+# Logs and OS files
+*.log
 .DS_Store

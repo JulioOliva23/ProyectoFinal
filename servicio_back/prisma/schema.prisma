@@ -112,6 +112,10 @@ model WorkOrder {
   // RN-03: lock type + AES-256-GCM ciphertext (iv:tag:data). Never plaintext.
   lockType             String                 @map("lock_type") @db.VarChar(20)
   unlockCodeCipher     String?                @map("unlock_code_cipher") @db.Text
+  // SUP-05: argon2 hash of the public tracking code printed on the intake
+  // ticket. Independent from the device unlock code (RN-03). Nullable only
+  // for orders created before SUP-05.
+  trackingCodeHash     String?                @map("tracking_code_hash") @db.VarChar(255)
   promisedAt           DateTime?              @map("promised_at") @db.Timestamptz(6)
   deliveredAt          DateTime?              @map("delivered_at") @db.Timestamptz(6)
   createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)

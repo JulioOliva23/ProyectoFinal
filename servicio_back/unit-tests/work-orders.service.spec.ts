@@ -1,3 +1,4 @@
+import * as argon2 from 'argon2';
 import { ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { UnlockCodeCipher } from '../src/common/crypto/unlock-code-cipher';
 import { UserRole } from '../src/common/enums/user-role.enum';
@@ -49,6 +50,8 @@ describe('WorkOrdersService', () => {
       list: jest.fn().mockResolvedValue({ rows: [], total: 0 }),
       revealUnlockCipher: jest.fn(),
       listAudit: jest.fn().mockResolvedValue([]),
+      findForPublicTracking: jest.fn(),
+      setTrackingCodeHash: jest.fn(),
     } as unknown as jest.Mocked<WorkOrderRepository>;
     devices = { checkIn: jest.fn().mockResolvedValue({ deviceId: 'd1', customerId: 'cust-1', deviceModelId: 'm1' }) };
     service = new WorkOrdersService(repository, devices as unknown as DevicesService, {} as UsersService, cipher);
@@ -78,6 +81,66 @@ describe('WorkOrdersService', () => {
     expect(result.hasUnlockCode).toBe(true);
     expect(result).not.toHaveProperty('unlockCodeCipher');
     expect(persisted.receptionistId).toBe('recep-1');
+  });
+
+  it('returns the tracking code once and stores only its argon2 hash (SUP-05)', async () => {
+    const result = await service.create(intake, { id: 'recep-1', role: UserRole.RECEPTIONIST });
+    const persisted = repository.create.mock.calls[0][1];
+    expect(result.trackingCode).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    expect(persisted.trackingCodeHash).toMatch(/^\$argon2/);
+    expect(await argon2.verify(persisted.trackingCodeHash as string, result.trackingCode.replace('-', ''))).toBe(true);
+    expect(result.trackingCode.replace('-', '')).not.toBe(intake.unlockCode);
+  });
+
+  describe('public tracking (SUP-05)', () => {
+    const statusRow = {
+      id: 'wo-1',
+      number: 123,
+      status: WorkOrderStatus.IN_REPAIR,
+      promisedAt: null,
+      updatedAt: new Date('2026-10-19T12:00:00Z'),
+      device: { deviceModel: { brand: 'Apple', model: 'iPhone 13' } },
+      budgets: [{ total: new Prisma.Decimal('1130') }],
+    };
+
+    it('returns only the customer status view for a valid code (RN-14)', async () => {
+      repository.findForPublicTracking.mockResolvedValue({ ...statusRow, trackingCodeHash: await argon2.hash('K7QM3XPA') });
+      const result = await service.trackPublicly({ number: 123, trackingCode: 'K7QM3XPA' });
+      expect(result).toEqual({
+        id: 'wo-1',
+        number: 123,
+        status: WorkOrderStatus.IN_REPAIR,
+        statusLabel: 'En Reparación',
+        device: 'Apple iPhone 13',
+        promisedAt: null,
+        budgetTotal: '1130.00',
+        updatedAt: statusRow.updatedAt,
+      });
+      expect(result).not.toHaveProperty('trackingCodeHash');
+    });
+
+    it('answers the same 404 for a wrong code and for an unknown number', async () => {
+      repository.findForPublicTracking.mockResolvedValue({ ...statusRow, trackingCodeHash: await argon2.hash('K7QM3XPA') });
+      const wrong = await service.trackPublicly({ number: 123, trackingCode: 'ZZZZZZZZ' }).catch((error: unknown) => error);
+      repository.findForPublicTracking.mockResolvedValue(null);
+      const unknown = await service.trackPublicly({ number: 999, trackingCode: 'K7QM3XPA' }).catch((error: unknown) => error);
+      expect(wrong).toBeInstanceOf(NotFoundException);
+      expect(unknown).toBeInstanceOf(NotFoundException);
+      expect((wrong as NotFoundException).message).toBe((unknown as NotFoundException).message);
+    });
+
+    it('rejects orders created before SUP-05 (no hash)', async () => {
+      repository.findForPublicTracking.mockResolvedValue({ ...statusRow, trackingCodeHash: null });
+      await expect(service.trackPublicly({ number: 123, trackingCode: 'K7QM3XPA' })).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('regenerates the code, never matching the unlock code, and replaces the hash', async () => {
+      const result = await service.regenerateTrackingCode('wo-1');
+      const [id, hash] = repository.setTrackingCodeHash.mock.calls[0];
+      expect(id).toBe('wo-1');
+      expect(await argon2.verify(hash, result.trackingCode.replace('-', ''))).toBe(true);
+      expect(result.trackingCode.replace('-', '')).not.toBe('4821');
+    });
   });
 
   it('rejects a promised date in the past', async () => {

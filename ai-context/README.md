@@ -6,5 +6,7 @@ Contexto compartido del **Sistema de Gestión para Servicio Técnico de Celulare
 | --- | --- |
 | [constitution/00-general.md](constitution/00-general.md) | `GEN-` · Idioma, vocabulario, stack, git y DoD |
 | [constitution/backend.md](constitution/backend.md) | `BE-` · NestJS 11, capas, Prisma 7, REST, seguridad y testing |
-
-Pendiente de crear al iniciar el relevamiento: `backlog/` (épicas y US con Gherkin), `supuestos.md` (`SUP-xx`), `preguntas-cliente.md` (`P-xx`). La constitución de frontend y tools se adapta cuando arranque `servicio_front`.
+| [constitution/frontend.md](constitution/frontend.md) | `FE-` · Mapeo desde `taller_front`, rutas RBAC, UI segura del código de desbloqueo |
+| [constitution/tools.md](constitution/tools.md) | `TL-` · Docker (5433), migraciones, seed, tests, Husky, CI y variables de entorno |
+| [supuestos.md](supuestos.md) | `SUP-` · Supuestos de dominio y decisiones pendientes |
+| [backlog.md](backlog.md) | `US-F` · Historias priorizadas para `servicio_front` |

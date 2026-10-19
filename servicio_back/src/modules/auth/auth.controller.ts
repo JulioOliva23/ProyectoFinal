@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -21,6 +22,10 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  // AI_CONTEXT §6.1: brute-force protection on credentials.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiResponse({ status: 429, description: 'Demasiados intentos de inicio de sesión' })
   @ApiOperation({ summary: 'Iniciar sesión y obtener el par de tokens JWT (US-00)' })
   @ApiResponse({ status: 200, description: 'Credenciales válidas, se emite access + refresh token', type: AuthResponseDto })
   @ApiResponse({ status: 400, description: 'El cuerpo de la petición es inválido' })

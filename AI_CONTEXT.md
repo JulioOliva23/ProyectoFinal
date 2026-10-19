@@ -27,9 +27,14 @@ PF/
 ├── .cursorrules / CLAUDE.md      ← punteros a este archivo
 ├── .ai/agents/                   ← subagentes (.claude/agents → symlink)
 ├── .husky/pre-commit             → scripts/hooks/hook-pre-commit.sh
-├── ai-context/constitution/      ← reglas GEN- y BE- adaptadas
+├── ai-context/
+│   ├── constitution/             ← GEN · BE · FE · TL
+│   ├── supuestos.md              ← SUP-xx
+│   └── backlog.md                ← US-xx de servicio_front
+├── tools/docker-compose.yml      ← PostgreSQL 17 local (puerto 5433)
 └── servicio_back/                ← (antes taller_back)
-    ├── prisma/schema.prisma      ← esquema del nuevo dominio (sin migrar)
+    ├── prisma/schema.prisma      ← esquema del nuevo dominio
+    ├── prisma/migrations/        ← init_phone_repair · add_work_order_tracking_code (aplicadas)
     ├── prisma/sql/immutable-audit.sql
     ├── src/common/               ← guards, decorators, filters, enums, crypto
     ├── src/domain/               ← lógica pura sin Nest/Prisma (state machine, IMEI)
@@ -74,7 +79,7 @@ Vocabulario fijo (GEN-02): código en inglés, documentación y etiquetas de UI 
 | RN-11 | Alerta de stock bajo cuando `availableStock <= minStock`. Invariante: `available = physical − reserved ≥ 0` (CHECK en BD). |
 | RN-12 | **Audit Trail:** cada cambio de estado inserta en `work_order_status_audits` (`created_at`, `user_id`, `previous_status`, `new_status`, `reason`). Tabla append-only reforzada por trigger. |
 | RN-13 | El historial de reparaciones por IMEI es permanente; buscar un IMEI en recepción muestra las OTs previas. |
-| RN-14 | `CUSTOMER` solo consulta el estado de sus propias OTs (sin costos internos, sin código de desbloqueo, sin notas técnicas). |
+| RN-14 | El cliente solo consulta el estado de sus propias OTs (sin costos internos, sin código de desbloqueo, sin notas técnicas). Dos modos (SUP-05): cuenta `CUSTOMER`, o número de OT + código de seguimiento (hash argon2, nunca el PIN del equipo). |
 | RN-15 | Importes en `Decimal(12,2)`, moneda `BOB` por defecto. `Float` prohibido. |
 
 Cita el ID en el código cuando justifica una validación: `// RN-09: block repair start without stock`.
@@ -104,13 +109,14 @@ La tabla de transiciones y los roles permitidos están en `src/domain/work-order
 ## 6. Los 5 módulos prioritarios
 
 ### 6.1 Auth & RBAC — `modules/auth`, `modules/users`, `common/guards`
-- `POST /auth/login`, `/auth/refresh` (rotación + denylist por `jti`; reuso de un `jti` revocado revoca la familia), `/auth/logout`, `GET /auth/me`.
-- `JwtAuthGuard` y `RolesGuard` globales (`APP_GUARD`). `@Public()` solo para login/refresh/swagger. `@Roles(...)` en **cada** handler.
-- `ThrottlerModule` en login. `createdBy`/`userId` salen del JWT (BE-19), nunca del body.
+- `POST /auth/login`, `/auth/refresh` (rotación + denylist por `jti`; reuso de un `jti` revocado revoca la familia), `/auth/logout`, `GET /auth/profile`.
+- `JwtAuthGuard` y `RolesGuard` globales (`APP_GUARD`). `@Public()` solo para login/refresh/swagger y `POST /public/tracking`. `@Roles(...)` en **cada** handler.
+- `ThrottlerGuard` en login (10/min por IP) y en `POST /public/tracking` (5/min por IP). `createdBy`/`userId` salen del JWT (BE-19), nunca del body.
 - `CUSTOMER` se vincula a un `Customer` mediante `User.customerId`.
 
 ### 6.2 Work Orders — `modules/work-orders`
-- Recepción: `POST /work-orders` (crea o reutiliza `Device` por IMEI, cifra el código de desbloqueo).
+- Recepción: `POST /work-orders` (crea o reutiliza `Device` por IMEI, cifra el código de desbloqueo y devuelve una sola vez el `trackingCode`, SUP-05).
+- `POST /work-orders/:id/tracking-code/regenerate` (RECEPTIONIST, ADMIN) y `POST /public/tracking` `{ number, trackingCode }` (público, SUP-05).
 - `POST /work-orders/:id/assign-technician` (RECEPTIONIST, ADMIN).
 - `POST /work-orders/:id/transitions` `{ to, reason? }` → `WorkOrderTransitionService`.
 - `POST /work-orders/:id/unlock-code/reveal` (técnico asignado, ADMIN; auditado).
@@ -147,13 +153,21 @@ Contrato: `WorkOrderTransitionHook { name; supports(ctx); handle(ctx, tx) }`, re
 
 ## 8. Estado de la migración
 
-- ✅ Migración `init_phone_repair` aplicada (14 tablas + triggers append-only de `prisma/sql/immutable-audit.sql` + CHECK de stock). PostgreSQL 17 local en `tools/docker-compose.yml` (puerto 5433).
-- ✅ Módulos portados: `auth`, `users`, `devices`, `spare-parts`, `budgets`, `work-orders` (+ `work-order-transitions`), con seed idempotente (`npm run prisma:seed`).
+- ✅ Migración inicial `init_phone_repair` **aplicada** en PostgreSQL 17 (`tools/docker-compose.yml`, puerto **5433**, bases `servicio_tecnico` y `servicio_tecnico_test`): 14 tablas.
+- ✅ Triggers activos (anexados a la migración desde `prisma/sql/immutable-audit.sql`): `work_order_status_audits`, `unlock_code_access_logs` y `stock_movements` rechazan `UPDATE`/`DELETE`; CHECK `spare_parts_stock_non_negative` garantiza `available = physical − reserved ≥ 0`.
+- ✅ Seed de pruebas idempotente disponible: `npm run prisma:seed` (usuarios por rol, 4 modelos, 6 repuestos con compatibilidad; contraseñas desde `SEED_PASSWORD*`).
+- ✅ Módulos portados: `auth`, `users`, `devices`, `spare-parts`, `budgets`, `work-orders` (+ `work-order-transitions`).
+- ✅ Husky instalado en la raíz (`npm install` → `prepare: husky`); `.husky/pre-commit` delega en `scripts/hooks/hook-pre-commit.sh`. **No usar `npx husky init`**: sobrescribe el hook con `npm test`.
 - ✅ Tests: unitarios en `unit-tests/` (`npm test`) y e2e en `test/` (`npm run test:e2e`, base `TEST_DATABASE_URL` separada, migrada automáticamente).
 - ❌ No se migran: `work-bays`, `warranties`, `settlements`, `additional-findings`, `inventory-discrepancies`, `public-tracking` (reemplazado por el rol `CUSTOMER`). Reintroducirlos exige un `SUP-xx`.
-- ⏭ Pendiente: `servicio_front` (adaptar `taller_front`), constitución `frontend.md`/`tools.md`, backlog y supuestos.
+- ✅ Documentación: [`frontend.md`](ai-context/constitution/frontend.md), [`tools.md`](ai-context/constitution/tools.md), [`supuestos.md`](ai-context/supuestos.md), [`backlog.md`](ai-context/backlog.md).
+- ✅ SUP-05 confirmado e implementado (código de seguimiento + `POST /public/tracking`).
+- ✅ Migración `20261019120000_add_work_order_tracking_code` aplicada el 2026-10-19 en `servicio_tecnico` y `servicio_tecnico_test` (columna `work_orders.tracking_code_hash`, nullable).
+- ⏭ Pendiente: implementar `servicio_front` según `backlog.md`.
 
 ### Arranque local
+
+Guía completa en [`tools.md`](ai-context/constitution/tools.md).
 
 ```bash
 docker compose -f tools/docker-compose.yml up -d --wait

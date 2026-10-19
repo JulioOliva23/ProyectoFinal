@@ -74,3 +74,14 @@ export class WorkOrderStatusResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty({ enum: WorkOrderStatus }) status!: WorkOrderStatus;
 }
+
+// SUP-05: the plain tracking code is returned ONLY here, once, so it can be
+// printed on the intake ticket. Only its hash is stored.
+export class CreatedWorkOrderResponseDto extends WorkOrderResponseDto {
+  @ApiProperty({ example: 'K7QM-3XPA', description: 'Código de seguimiento para el portal del cliente (se muestra una sola vez)' })
+  trackingCode!: string;
+}
+
+export class TrackingCodeResponseDto {
+  @ApiProperty({ example: 'K7QM-3XPA' }) trackingCode!: string;
+}

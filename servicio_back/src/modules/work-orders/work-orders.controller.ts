@@ -8,7 +8,9 @@ import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { AssignTechnicianDto, QueryWorkOrdersDto, TransitionWorkOrderDto, UpdateDiagnosisDto } from './dto/work-order-actions.dto';
 import {
+  CreatedWorkOrderResponseDto,
   CustomerWorkOrderStatusDto,
+  TrackingCodeResponseDto,
   PaginatedWorkOrdersDto,
   UnlockCodeResponseDto,
   WorkOrderAuditEntryDto,
@@ -32,10 +34,10 @@ export class WorkOrdersController {
   @Post()
   @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   @ApiOperation({ summary: 'Recepción: registrar dispositivo y abrir OT (RN-01, RN-02, RN-03)' })
-  @ApiResponse({ status: 201, type: WorkOrderResponseDto })
+  @ApiResponse({ status: 201, type: CreatedWorkOrderResponseDto, description: 'Incluye el código de seguimiento (única vez, SUP-05)' })
   @ApiResponse({ status: 400, description: 'Datos inválidos (IMEI Luhn, código de desbloqueo, check-in)' })
   @ApiResponse({ status: 409, description: 'IMEI registrado con otro modelo' })
-  create(@Body() dto: CreateWorkOrderDto, @CurrentUser() user: AuthenticatedUser): Promise<WorkOrderResponseDto> {
+  create(@Body() dto: CreateWorkOrderDto, @CurrentUser() user: AuthenticatedUser): Promise<CreatedWorkOrderResponseDto> {
     return this.service.create(dto, user);
   }
 
@@ -71,6 +73,15 @@ export class WorkOrdersController {
   @ApiResponse({ status: 200, type: WorkOrderResponseDto })
   assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignTechnicianDto): Promise<WorkOrderResponseDto> {
     return this.service.assignTechnician(id, dto);
+  }
+
+  @Post(':id/tracking-code/regenerate')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+  @ApiOperation({ summary: 'Emitir un nuevo código de seguimiento (ticket perdido); invalida el anterior (SUP-05)' })
+  @ApiResponse({ status: 200, type: TrackingCodeResponseDto })
+  regenerateTrackingCode(@Param('id', ParseUUIDPipe) id: string): Promise<TrackingCodeResponseDto> {
+    return this.service.regenerateTrackingCode(id);
   }
 
   @Patch(':id/diagnosis')
