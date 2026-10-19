@@ -79,7 +79,7 @@ export class BudgetItemResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty({ enum: BudgetItemType }) itemType!: BudgetItemType;
   @ApiProperty() description!: string;
-  @ApiPropertyOptional({ nullable: true }) sparePartId!: string | null;
+  @ApiProperty({ type: String, nullable: true  }) sparePartId!: string | null;
   @ApiProperty() quantity!: number;
   @ApiProperty() unitPrice!: string;
   @ApiProperty() subtotal!: string;
@@ -96,10 +96,10 @@ export class BudgetResponseDto {
   @ApiProperty() total!: string;
   @ApiProperty() currency!: string;
   @ApiProperty() expiresAt!: Date;
-  @ApiPropertyOptional({ nullable: true }) sentAt!: Date | null;
-  @ApiPropertyOptional({ nullable: true }) decidedAt!: Date | null;
-  @ApiPropertyOptional({ nullable: true }) decisionChannel!: string | null;
-  @ApiPropertyOptional({ nullable: true }) rejectionReason!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true  }) sentAt!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true  }) decidedAt!: Date | null;
+  @ApiProperty({ type: String, nullable: true  }) decisionChannel!: string | null;
+  @ApiProperty({ type: String, nullable: true  }) rejectionReason!: string | null;
   @ApiProperty({ type: [BudgetItemResponseDto] }) items!: BudgetItemResponseDto[];
 }
 

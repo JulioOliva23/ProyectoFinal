@@ -71,8 +71,12 @@ export class WorkOrdersController {
   @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   @ApiOperation({ summary: 'Asignar técnico (RN-06)' })
   @ApiResponse({ status: 200, type: WorkOrderResponseDto })
-  assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignTechnicianDto): Promise<WorkOrderResponseDto> {
-    return this.service.assignTechnician(id, dto);
+  assign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignTechnicianDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<WorkOrderResponseDto> {
+    return this.service.assignTechnician(id, dto, user);
   }
 
   @Post(':id/tracking-code/regenerate')

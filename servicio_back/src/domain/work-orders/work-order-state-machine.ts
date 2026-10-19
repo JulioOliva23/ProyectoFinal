@@ -57,6 +57,12 @@ export function allowedNextStatuses(from: WorkOrderStatus): WorkOrderStatus[] {
   return Object.keys(TRANSITIONS[from] ?? {}) as WorkOrderStatus[];
 }
 
+// FE-08: what the UI may offer a given role; the transition service still
+// re-checks everything (ownership included).
+export function allowedTransitionsFor(from: WorkOrderStatus, role: UserRole): WorkOrderStatus[] {
+  return allowedNextStatuses(from).filter((to) => checkTransition(from, to, role).allowed);
+}
+
 export function isWorkOrderStatus(value: string): value is WorkOrderStatus {
   return (Object.values(WorkOrderStatus) as string[]).includes(value);
 }

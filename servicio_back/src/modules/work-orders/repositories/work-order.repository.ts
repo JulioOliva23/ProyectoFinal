@@ -17,7 +17,7 @@ export const WORK_ORDER_DETAIL = {
   createdAt: true,
   technicianId: true,
   customerId: true,
-  device: { select: { id: true, imei: true, color: true, deviceModel: { select: { brand: true, model: true } } } },
+  device: { select: { id: true, imei: true, color: true, deviceModel: { select: { id: true, brand: true, model: true } } } },
   customer: { select: { id: true, name: true } },
   technician: { select: { id: true, fullName: true } },
 } as const;

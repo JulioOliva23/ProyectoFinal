@@ -1,6 +1,6 @@
 import { UserRole } from '../src/common/enums/user-role.enum';
 import { WorkOrderStatus as S } from '../src/common/enums/work-order-status.enum';
-import { allowedNextStatuses, checkTransition } from '../src/domain/work-orders/work-order-state-machine';
+import { allowedNextStatuses, allowedTransitionsFor, checkTransition } from '../src/domain/work-orders/work-order-state-machine';
 
 describe('Work order state machine (RN-04)', () => {
   const happyPath: Array<[S, S, UserRole]> = [
@@ -41,6 +41,13 @@ describe('Work order state machine (RN-04)', () => {
 
   it('allows QC rework back to IN_REPAIR', () => {
     expect(checkTransition(S.QUALITY_CONTROL, S.IN_REPAIR, UserRole.TECHNICIAN).allowed).toBe(true);
+  });
+
+  it('offers each role only the transitions it may trigger (FE-08)', () => {
+    expect(allowedTransitionsFor(S.BUDGETED, UserRole.TECHNICIAN)).toEqual([]);
+    expect(allowedTransitionsFor(S.BUDGETED, UserRole.RECEPTIONIST).sort()).toEqual([S.APPROVED, S.CANCELLED]);
+    expect(allowedTransitionsFor(S.APPROVED, UserRole.TECHNICIAN)).toEqual([S.IN_REPAIR]);
+    expect(allowedTransitionsFor(S.IN_REPAIR, UserRole.CUSTOMER)).toEqual([]);
   });
 
   it('treats DELIVERED as terminal', () => {

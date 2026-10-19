@@ -14,6 +14,19 @@ const PRISMA_ERROR_STATUS: Record<string, HttpStatus> = {
   P2025: HttpStatus.NOT_FOUND,
 };
 
+// Domain details a client may act on (e.g. the Stock Guard's missing parts,
+// RN-09). Whitelisted so internal fields never leak.
+const EXPOSED_DETAIL_KEYS = ['code', 'sparePartIds'] as const;
+type ExposedDetails = Partial<Record<(typeof EXPOSED_DETAIL_KEYS)[number], unknown>>;
+
+function pickExposedDetails(body: object): ExposedDetails {
+  const details: ExposedDetails = {};
+  for (const key of EXPOSED_DETAIL_KEYS) {
+    if (key in body) details[key] = (body as Record<string, unknown>)[key];
+  }
+  return details;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -23,12 +36,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
+    let details: ExposedDetails = {};
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
       message =
         typeof body === 'string' ? body : ((body as { message?: string | string[] }).message ?? message);
+      if (typeof body === 'object' && body !== null) details = pickExposedDetails(body);
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       status = PRISMA_ERROR_STATUS[exception.code] ?? HttpStatus.INTERNAL_SERVER_ERROR;
       message = 'Database operation failed';
@@ -40,6 +55,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       message,
+      ...details,
       path: request.url,
       timestamp: new Date().toISOString(),
     });

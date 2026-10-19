@@ -29,7 +29,7 @@ function detail(overrides: Partial<WorkOrderDetailRow> = {}): WorkOrderDetailRow
     createdAt: new Date(),
     technicianId: 'tech-1',
     customerId: 'cust-1',
-    device: { id: 'd1', imei: '352099001761481', color: null, deviceModel: { brand: 'Apple', model: 'iPhone 13' } },
+    device: { id: 'd1', imei: '352099001761481', color: null, deviceModel: { id: 'm1', brand: 'Apple', model: 'iPhone 13' } },
     customer: { id: 'cust-1', name: 'Ana' },
     technician: { id: 'tech-1', fullName: 'Técnico Uno' },
     ...overrides,
@@ -152,6 +152,12 @@ describe('WorkOrdersService', () => {
   it('forces technicians to their own queue (RN-06)', async () => {
     await service.list({ page: 1, pageSize: 20, technicianId: 'someone-else' }, { id: 'tech-1', role: UserRole.TECHNICIAN });
     expect(repository.list).toHaveBeenCalledWith({ status: undefined, technicianId: 'tech-1' }, 1, 20);
+  });
+
+  it('returns only the transitions the viewer may trigger (FE-08)', async () => {
+    repository.findDetail.mockResolvedValue(detail({ status: WorkOrderStatus.APPROVED }));
+    expect((await service.get('wo-1', { id: 'tech-1', role: UserRole.TECHNICIAN })).allowedTransitions).toEqual([WorkOrderStatus.IN_REPAIR]);
+    expect((await service.get('wo-1', { id: 'recep-1', role: UserRole.RECEPTIONIST })).allowedTransitions).toEqual([]);
   });
 
   it('forbids a technician from reading another technician order (RN-06)', async () => {

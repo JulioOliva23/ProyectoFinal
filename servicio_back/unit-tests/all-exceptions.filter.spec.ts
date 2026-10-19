@@ -1,4 +1,4 @@
-import { ArgumentsHost, BadRequestException, HttpStatus, NotFoundException } from '@nestjs/common';
+import { ArgumentsHost, BadRequestException, HttpStatus, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma } from '../src/generated/prisma/client';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 
@@ -71,6 +71,19 @@ describe('AllExceptionsFilter (BE-E14)', () => {
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'order not found' }),
     );
+  });
+
+  it('exposes whitelisted domain details such as the Stock Guard missing parts (RN-09)', () => {
+    const exception = new UnprocessableEntityException({
+      message: 'RN-09: insufficient stock to start the repair',
+      code: 'INSUFFICIENT_STOCK',
+      sparePartIds: ['p1'],
+      internalNote: 'must not leak',
+    });
+    const response = capture(new AllExceptionsFilter(), exception);
+    const body = response.json.mock.calls[0][0];
+    expect(body).toMatchObject({ statusCode: 422, code: 'INSUFFICIENT_STOCK', sparePartIds: ['p1'] });
+    expect(body).not.toHaveProperty('internalNote');
   });
 
   it('falls back to the default message when the HttpException body has none', () => {

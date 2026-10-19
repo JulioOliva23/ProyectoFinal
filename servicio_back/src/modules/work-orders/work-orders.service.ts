@@ -12,7 +12,7 @@ import { Paginated } from '../../common/dto/pagination-query.dto';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { WorkOrderStatus } from '../../common/enums/work-order-status.enum';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
-import { allowedNextStatuses } from '../../domain/work-orders/work-order-state-machine';
+import { allowedTransitionsFor } from '../../domain/work-orders/work-order-state-machine';
 import { WORK_ORDER_STATUS_LABELS } from '../../domain/work-orders/work-order-status-labels';
 import { formatTrackingCode, generateTrackingCodeDistinctFrom } from '../../domain/work-orders/tracking-code';
 import { PublicTrackingRequestDto } from './dto/public-tracking.dto';
@@ -72,7 +72,7 @@ export class WorkOrdersService {
         trackingCodeHash,
       });
     });
-    return { ...toResponse(order), trackingCode: formatTrackingCode(trackingCode) };
+    return { ...toResponse(order, user), trackingCode: formatTrackingCode(trackingCode) };
   }
 
   // SUP-05: lost ticket. Issues a new code and invalidates the previous one.
@@ -100,11 +100,11 @@ export class WorkOrdersService {
     // RN-06: technicians only ever see their own queue.
     const technicianId = user.role === UserRole.TECHNICIAN ? user.id : query.technicianId;
     const { rows, total } = await this.repository.list({ status: query.status, technicianId }, query.page, query.pageSize);
-    return { data: rows.map(toResponse), total, page: query.page, pageSize: query.pageSize };
+    return { data: rows.map((row) => toResponse(row, user)), total, page: query.page, pageSize: query.pageSize };
   }
 
   async get(id: string, user: AuthenticatedUser): Promise<WorkOrderResponseDto> {
-    return toResponse(await this.requireVisible(id, user));
+    return toResponse(await this.requireVisible(id, user), user);
   }
 
   async listForCustomer(user: AuthenticatedUser): Promise<CustomerWorkOrderStatusDto[]> {
@@ -112,13 +112,13 @@ export class WorkOrdersService {
     return (await this.repository.findForCustomer(user.customerId)).map(toCustomerStatus);
   }
 
-  async assignTechnician(id: string, dto: AssignTechnicianDto): Promise<WorkOrderResponseDto> {
+  async assignTechnician(id: string, dto: AssignTechnicianDto, user: AuthenticatedUser): Promise<WorkOrderResponseDto> {
     await this.requireExisting(id);
     await this.users.assertActiveTechnician(dto.technicianId);
     if (!(await this.repository.assignTechnician(id, dto.technicianId, ASSIGNABLE_STATUSES))) {
       throw new ConflictException('RN-06: technician can only be assigned before the repair starts');
     }
-    return toResponse(await this.requireExisting(id));
+    return toResponse(await this.requireExisting(id), user);
   }
 
   async updateDiagnosis(id: string, dto: UpdateDiagnosisDto, user: AuthenticatedUser): Promise<WorkOrderResponseDto> {
@@ -126,7 +126,7 @@ export class WorkOrdersService {
     if (order.status !== WorkOrderStatus.IN_DIAGNOSIS) {
       throw new ConflictException('Diagnosis can only be recorded while the order is IN_DIAGNOSIS');
     }
-    return toResponse(await this.repository.updateDiagnosis(id, dto.preliminaryDiagnosis));
+    return toResponse(await this.repository.updateDiagnosis(id, dto.preliminaryDiagnosis), user);
   }
 
   // RN-03: only the assigned technician or an admin; every reveal is logged.
@@ -193,14 +193,16 @@ function toCustomerStatus(row: CustomerStatusRow): CustomerWorkOrderStatusDto {
   };
 }
 
-function toResponse(order: WorkOrderDetailRow): WorkOrderResponseDto {
+function toResponse(order: WorkOrderDetailRow, viewer: AuthenticatedUser): WorkOrderResponseDto {
   const status = order.status as WorkOrderStatus;
   return {
     id: order.id,
     number: order.number,
     status,
     statusLabel: WORK_ORDER_STATUS_LABELS[status],
-    allowedTransitions: allowedNextStatuses(status),
+    // FE-08: only what this viewer may trigger (a technician only on their own orders).
+    allowedTransitions:
+      viewer.role === UserRole.TECHNICIAN && order.technicianId !== viewer.id ? [] : allowedTransitionsFor(status, viewer.role),
     reportedProblem: order.reportedProblem,
     preliminaryDiagnosis: order.preliminaryDiagnosis,
     batteryLevel: order.batteryLevel,
@@ -212,6 +214,7 @@ function toResponse(order: WorkOrderDetailRow): WorkOrderResponseDto {
     createdAt: order.createdAt,
     device: {
       id: order.device.id,
+      deviceModelId: order.device.deviceModel.id,
       imei: order.device.imei,
       brand: order.device.deviceModel.brand,
       model: order.device.deviceModel.model,

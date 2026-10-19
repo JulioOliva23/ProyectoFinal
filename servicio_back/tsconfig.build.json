@@ -1,6 +1,12 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": "./src", "outDir": "./dist" },
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    // Keep the incremental state next to its output: deleting dist/ must force
+    // a full re-emit instead of leaving modules missing.
+    "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo"
+  },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]
 }

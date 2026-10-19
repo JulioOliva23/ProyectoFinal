@@ -5,10 +5,12 @@ import { LockType } from './work-order-enums';
 
 class WorkOrderDeviceDto {
   @ApiProperty() id!: string;
+  // RN-10: lets the budget builder list only compatible parts.
+  @ApiProperty() deviceModelId!: string;
   @ApiProperty() imei!: string;
   @ApiProperty() brand!: string;
   @ApiProperty() model!: string;
-  @ApiPropertyOptional({ nullable: true }) color!: string | null;
+  @ApiProperty({ type: String, nullable: true  }) color!: string | null;
 }
 
 class WorkOrderPersonDto {
@@ -24,13 +26,13 @@ export class WorkOrderResponseDto {
   @ApiProperty() statusLabel!: string;
   @ApiProperty({ enum: WorkOrderStatus, isArray: true }) allowedTransitions!: WorkOrderStatus[];
   @ApiProperty() reportedProblem!: string;
-  @ApiPropertyOptional({ nullable: true }) preliminaryDiagnosis!: string | null;
-  @ApiPropertyOptional({ nullable: true }) batteryLevel!: number | null;
+  @ApiProperty({ type: String, nullable: true  }) preliminaryDiagnosis!: string | null;
+  @ApiProperty({ type: Number, nullable: true  }) batteryLevel!: number | null;
   @ApiProperty({ type: CosmeticCheckInDto }) cosmeticCheckIn!: CosmeticCheckInDto;
   @ApiProperty({ enum: LockType }) lockType!: LockType;
   @ApiProperty() hasUnlockCode!: boolean;
-  @ApiPropertyOptional({ nullable: true }) promisedAt!: Date | null;
-  @ApiPropertyOptional({ nullable: true }) deliveredAt!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true  }) promisedAt!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true  }) deliveredAt!: Date | null;
   @ApiProperty() createdAt!: Date;
   @ApiProperty({ type: WorkOrderDeviceDto }) device!: WorkOrderDeviceDto;
   @ApiProperty({ type: WorkOrderPersonDto }) customer!: WorkOrderPersonDto;
@@ -51,15 +53,15 @@ export class CustomerWorkOrderStatusDto {
   @ApiProperty({ enum: WorkOrderStatus }) status!: WorkOrderStatus;
   @ApiProperty() statusLabel!: string;
   @ApiProperty() device!: string;
-  @ApiPropertyOptional({ nullable: true }) promisedAt!: Date | null;
-  @ApiPropertyOptional({ nullable: true, description: 'Total del presupuesto vigente' }) budgetTotal!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true  }) promisedAt!: Date | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Total del presupuesto vigente'  }) budgetTotal!: string | null;
   @ApiProperty() updatedAt!: Date;
 }
 
 export class WorkOrderAuditEntryDto {
   @ApiProperty({ enum: WorkOrderStatus }) previousStatus!: WorkOrderStatus;
   @ApiProperty({ enum: WorkOrderStatus }) newStatus!: WorkOrderStatus;
-  @ApiPropertyOptional({ nullable: true }) reason!: string | null;
+  @ApiProperty({ type: String, nullable: true  }) reason!: string | null;
   @ApiProperty() userId!: string;
   @ApiProperty() userName!: string;
   @ApiProperty() createdAt!: Date;
