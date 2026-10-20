@@ -118,7 +118,7 @@ Plantilla en [`servicio_back/.env.example`](servicio_back/.env.example). El `.en
 | Backend | [Render](https://render.com) (web service) | Blueprint [`render.yaml`](render.yaml) |
 | Frontend | [Vercel](https://vercel.com) | Ver el README de [frontPF](https://github.com/JulioOliva23/frontPF) |
 
-1. **Render:** *New → Blueprint* sobre este repo. Crea la base `servicio-db` y el servicio `servicio-back`, y conecta `DATABASE_URL` sola. Completar `UNLOCK_CODE_ENCRYPTION_KEY` (`openssl rand -hex 32`) y `CORS_ORIGINS` (URL del frontend). Los secretos JWT se generan solos. Cada push a `main` redespliega; al arrancar corre `prisma migrate deploy` (`npm run start:prod`).
+1. **Render:** *New → Blueprint* sobre este repo. Crea la base `servicio-db` y el servicio `servicio-back`, y conecta `DATABASE_URL` sola. Completar `UNLOCK_CODE_ENCRYPTION_KEY` (`openssl rand -hex 32`) y `CORS_ORIGINS` (URL del frontend). Los secretos JWT se generan solos. Cada push a `main` redespliega cuando la CI pasa; al arrancar corre `prisma migrate deploy` (`npm run start:prod`).
 2. **Datos demo** (una sola vez, desde tu máquina, con la *External Database URL* de `servicio-db` en Render → Connect):
 
    ```bash
@@ -144,13 +144,27 @@ Plantilla en [`servicio_back/.env.example`](servicio_back/.env.example). El `.en
 
 ## Calidad: hooks, CI y subagentes
 
-- **Hook pre-commit** ([`scripts/hooks/hook-pre-commit.sh`](scripts/hooks/hook-pre-commit.sh), instalado por Husky con `npm install` en la raíz): bloquea el commit si hay un `.env` en stage o si fallan lint, typecheck o tests del paquete modificado.
-- **Hooks de dominio** (`src/modules/work-orders/hooks/`): precondiciones del flujo y Stock Guard, ejecutados antes de cada transición, con sus propios tests.
-- **CI** ([`.github/workflows/hooks-and-agents.yml`](.github/workflows/hooks-and-agents.yml)), en cada push a `main` y en cada PR:
-  - `git-hooks`: corre el mismo hook pre-commit sobre el diff y los tests de los hooks de dominio.
-  - `subagents`: valida el frontmatter de los subagentes.
-  - Ambos publican un reporte en el resumen del run (Actions → run → Summary).
-- **Subagentes** ([`.claude/agents/`](.claude/agents/), detalle en [`.ai/README.md`](.ai/README.md)):
+### Hooks
+
+| Hook | Dónde | Qué hace |
+| --- | --- | --- |
+| Git `pre-commit` | [`scripts/hooks/hook-pre-commit.sh`](scripts/hooks/hook-pre-commit.sh) (Husky, se instala con `npm install` en la raíz) | Bloquea el commit si hay un `.env` en stage o si fallan lint, typecheck o tests del paquete modificado |
+| Claude Code `PreToolUse` | [`.claude/settings.json`](.claude/settings.json) → [`claude-guard.sh`](scripts/hooks/claude-guard.sh) | Impide que el agente lea o edite `.env` reales, corra `prisma migrate reset/dev`, `db push`, `DROP/TRUNCATE`, `git push --force` o `git commit --no-verify` |
+| Claude Code `PostToolUse` | [`.claude/settings.json`](.claude/settings.json) → [`claude-post-edit.sh`](scripts/hooks/claude-post-edit.sh) | Tras cada edición de un `.ts` de `servicio_back` corre ESLint sobre el archivo y sus tests relacionados; si fallan, el agente recibe el error y lo corrige |
+| Dominio | `src/modules/work-orders/hooks/` | Precondiciones del flujo, Stock Guard y auditoría, ejecutados antes de cada transición de la OT, con tests propios |
+
+### CI/CD
+
+| Workflow | Jobs | Cuándo |
+| --- | --- | --- |
+| [`ci.yml`](.github/workflows/ci.yml) | `quality`: lint, typecheck, tests unitarios con cobertura y build · `e2e`: Supertest contra PostgreSQL 17 (servicio de GitHub Actions) | Push a `main` y cada PR |
+| [`hooks-and-agents.yml`](.github/workflows/hooks-and-agents.yml) | `git-hooks`: hook pre-commit sobre el diff · `claude-hooks`: prueba los casos permitidos/bloqueados de `claude-guard.sh` · `subagents`: valida el frontmatter de los subagentes | Push a `main` y cada PR |
+
+Cada job publica un reporte en el resumen del run (Actions → run → Summary). **Despliegue continuo:** Render redespliega `main` solo cuando todos los checks pasan (`autoDeployTrigger: checksPass` en [`render.yaml`](render.yaml)).
+
+### Subagentes
+
+Definidos en [`.claude/agents/`](.claude/agents/) (detalle en [`.ai/README.md`](.ai/README.md)):
 
 | Agente | Cuándo usarlo |
 | --- | --- |
@@ -160,4 +174,4 @@ Plantilla en [`servicio_back/.env.example`](servicio_back/.env.example). El `.en
 
 ## Flujo de trabajo
 
-Ramas `feat/*` y `fix/*` desde `main`, integradas con Pull Request y la CI en verde. Commits con [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `ci:`, `chore:`).
+Ramas `feat/*`, `fix/*` y `docs/*` desde `main`, integradas con Pull Request revisado por otro integrante y con la CI en verde (`main` protegida). Commits con [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `ci:`, `chore:`).

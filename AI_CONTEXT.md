@@ -1,6 +1,6 @@
 # AI_CONTEXT — Sistema de Gestión para Servicio Técnico de Celulares
 
-Fuente de verdad para cualquier agente de IA (Claude Code, Cursor, subagentes en `.ai/agents/`) y para el equipo. Si una instrucción de un prompt contradice este archivo, **gana este archivo** y se reporta la contradicción.
+Fuente de verdad para cualquier agente de IA (Claude Code, Cursor, subagentes en `.claude/agents/`) y para el equipo. Si una instrucción de un prompt contradice este archivo, **gana este archivo** y se reporta la contradicción.
 
 Arquitectura heredada del proyecto *P04 — Taller Mecánico* (`pdis/`): mismo stack, mismas capas, mismas convenciones `GEN-`/`BE-`. Solo cambia el dominio. Las reglas técnicas detalladas viven en [`ai-context/constitution/`](ai-context/constitution/).
 
@@ -25,8 +25,11 @@ Arquitectura heredada del proyecto *P04 — Taller Mecánico* (`pdis/`): mismo s
 PF/
 ├── AI_CONTEXT.md                 ← este archivo
 ├── .cursorrules / CLAUDE.md      ← punteros a este archivo
-├── .ai/agents/                   ← subagentes (.claude/agents → symlink)
+├── .claude/agents/               ← subagentes (validados en CI por scripts/hooks/check-agents.sh)
+├── .claude/settings.json         ← hooks de Claude Code (scripts/hooks/claude-*.sh)
 ├── .husky/pre-commit             → scripts/hooks/hook-pre-commit.sh
+├── .github/workflows/            ← CI (lint, tests, build, e2e) · Hooks & Subagents
+├── render.yaml                   ← despliegue en Render (PostgreSQL + API)
 ├── ai-context/
 │   ├── constitution/             ← GEN · BE · FE · TL
 │   ├── 00-contexto-problema.md   ← ficha del problema (reconstruida)
