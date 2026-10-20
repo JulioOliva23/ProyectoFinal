@@ -1,6 +1,12 @@
-# Render Blueprint for servicio_back (NestJS API).
-# The PostgreSQL database lives in Neon; paste its connection string in
-# DATABASE_URL when Render asks for the values marked sync: false.
+# Render Blueprint for servicio_back: PostgreSQL database + NestJS API.
+# Render asks for the values marked sync: false when the Blueprint is created.
+databases:
+  - name: servicio-db
+    plan: free
+    postgresMajorVersion: "17"
+    databaseName: servicio_tecnico
+    user: servicio
+
 services:
   - type: web
     name: servicio-back
@@ -18,7 +24,9 @@ services:
       - key: TRUST_PROXY
         value: "true"
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: servicio-db
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
