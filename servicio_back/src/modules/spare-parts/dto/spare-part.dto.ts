@@ -41,7 +41,7 @@ export class CreateSparePartDto {
   @Matches(MONEY_PATTERN)
   unitCost!: string;
 
-  @ApiProperty({ example: '980.00', description: 'Precio taller al cliente' })
+  @ApiProperty({ example: '980.00', description: 'Precio de venta al cliente' })
   @Matches(MONEY_PATTERN)
   workshopPrice!: string;
 
