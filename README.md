@@ -4,9 +4,9 @@ API REST del **Sistema de Gestión para Servicio Técnico de Celulares**: recepc
 
 | Parte | Repositorio | URL desplegada |
 | --- | --- | --- |
-| Base de datos (PostgreSQL 17) | este repo (`servicio_back/prisma`) | _pendiente_ |
-| Backend (NestJS) | este repo | _pendiente_ (Swagger en `<url>/api`) |
-| Frontend (React) | [JulioOliva23/frontPF](https://github.com/JulioOliva23/frontPF) | _pendiente_ |
+| Base de datos (PostgreSQL 17) | este repo (`servicio_back/prisma`) | Render (`servicio-db`, privada; la usa el backend) |
+| Backend (NestJS) | este repo | https://servicio-back.onrender.com/api/v1 · Swagger: https://servicio-back.onrender.com/api |
+| Frontend (React) | [JulioOliva23/frontPF](https://github.com/JulioOliva23/frontPF) | https://front-pf-three.vercel.app |
 
 ## Equipo
 
