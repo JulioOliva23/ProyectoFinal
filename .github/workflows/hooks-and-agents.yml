@@ -1,0 +1,91 @@
+# Runs the same checks as the local Git hook and validates the subagents,
+# publishing a readable report in each run's summary (Actions → run → Summary).
+name: Hooks & Subagents
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  git-hooks:
+    name: Git hook (pre-commit)
+    runs-on: ubuntu-latest
+    env:
+      # Dummy URL: prisma generate needs it, no DB is contacted (GEN-11).
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: servicio_back/package-lock.json
+
+      - name: Install servicio_back
+        run: npm ci --prefix servicio_back
+
+      - name: Generate Prisma client
+        run: npx --prefix servicio_back prisma generate --schema servicio_back/prisma/schema.prisma
+
+      - name: Resolve base ref
+        id: base
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.before }}" != "" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            echo "ref=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          else
+            # Manual run or first push: check everything.
+            echo "ref=ALL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run pre-commit hook
+        env:
+          HOOK_BASE_REF: ${{ steps.base.outputs.ref }}
+        run: |
+          set -o pipefail
+          ./scripts/hooks/hook-pre-commit.sh 2>&1 | tee hook.log
+
+      - name: Domain hook tests
+        if: always()
+        run: |
+          set -o pipefail
+          npm test --prefix servicio_back -- 'hook|work-order-transition' --verbose 2>&1 | tee domain-hooks.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## 🪝 Git hook (pre-commit)"
+            echo "Base: \`${{ steps.base.outputs.ref }}\`"
+            echo '```'
+            sed 's/\x1b\[[0-9;]*m//g' hook.log 2>/dev/null || echo "(no output)"
+            echo '```'
+            echo "## 🧩 Domain hooks (Stock Guard, Preconditions, transition pipeline)"
+            echo '```'
+            grep -E '✓|✕|PASS|FAIL|Tests:' domain-hooks.log 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  subagents:
+    name: Subagents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate .ai/agents
+        run: |
+          set -o pipefail
+          {
+            echo "## 🤖 Subagents"
+            ./scripts/hooks/check-agents.sh
+          } | tee -a "$GITHUB_STEP_SUMMARY"
