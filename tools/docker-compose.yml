@@ -1,5 +1,8 @@
 # TL: local PostgreSQL 17 for servicio_back. Port 5433 avoids clashing with
 # the base workshop project (5432).
+# Explicit project name: the folder name "tools" collides with other compose
+# projects and would recreate their containers.
+name: servicio-tecnico
 services:
   postgres:
     image: postgres:17-alpine
