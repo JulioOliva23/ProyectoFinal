@@ -3,10 +3,17 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Behind a hosting proxy (Render) every request comes from the proxy's IP;
+  // trust one hop so the login/tracking throttlers limit per client, not globally.
+  if (process.env.TRUST_PROXY === 'true') {
+    app.set('trust proxy', 1);
+  }
 
   // BE-E09: CORS allowlist from CORS_ORIGINS (comma-separated). Defaults to
   // reflecting any origin for local development; set the variable to lock the

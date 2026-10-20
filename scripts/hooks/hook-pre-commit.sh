@@ -37,7 +37,7 @@ PACKAGES=()
 for dir in */; do
   dir="${dir%/}"
   [ -f "$dir/package.json" ] || continue
-  if printf '%s\n' "$STAGED" | grep -q "^$dir/"; then PACKAGES+=("$dir"); fi
+  if grep -q "^$dir/" <<<"$STAGED"; then PACKAGES+=("$dir"); fi
 done
 
 if [ "${#PACKAGES[@]}" -eq 0 ]; then

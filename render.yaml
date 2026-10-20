@@ -1,0 +1,39 @@
+# Render Blueprint for servicio_back (NestJS API).
+# The PostgreSQL database lives in Neon; paste its connection string in
+# DATABASE_URL when Render asks for the values marked sync: false.
+services:
+  - type: web
+    name: servicio-back
+    runtime: node
+    plan: free
+    rootDir: servicio_back
+    buildCommand: npm ci && npm run build
+    # Applies pending migrations, then starts the compiled app.
+    startCommand: npm run start:prod
+    healthCheckPath: /api
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: LABOR_HOURLY_RATE
+        value: "80"
+      - key: BUDGET_VALIDITY_DAYS
+        value: "7"
+      # 64 hex chars: generate with `openssl rand -hex 32`.
+      - key: UNLOCK_CODE_ENCRYPTION_KEY
+        sync: false
+      # Frontend URL(s), comma-separated, e.g. https://frontpf.vercel.app
+      - key: CORS_ORIGINS
+        sync: false
