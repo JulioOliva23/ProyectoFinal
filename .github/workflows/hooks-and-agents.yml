@@ -82,7 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate .ai/agents
+      - name: Validate .claude/agents
         run: |
           set -o pipefail
           {
