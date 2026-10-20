@@ -114,20 +114,19 @@ Plantilla en [`servicio_back/.env.example`](servicio_back/.env.example). El `.en
 
 | Parte | Servicio | Configuración |
 | --- | --- | --- |
-| Base de datos | [Neon](https://neon.tech) (PostgreSQL 17) | Las migraciones se aplican solas al arrancar el backend |
+| Base de datos | [Render](https://render.com) PostgreSQL 17 | Definida en [`render.yaml`](render.yaml); las migraciones se aplican solas al arrancar el backend |
 | Backend | [Render](https://render.com) (web service) | Blueprint [`render.yaml`](render.yaml) |
 | Frontend | [Vercel](https://vercel.com) | Ver el README de [frontPF](https://github.com/JulioOliva23/frontPF) |
 
-1. **Neon:** crear el proyecto (región `us-east`) y copiar la *connection string* directa (sin `-pooler`) con `?sslmode=require`.
-2. **Render:** *New → Blueprint* sobre este repo. Completar `DATABASE_URL` (Neon), `UNLOCK_CODE_ENCRYPTION_KEY` (`openssl rand -hex 32`) y `CORS_ORIGINS` (URL del frontend). Los secretos JWT se generan solos. Cada push a `main` redespliega; al arrancar corre `prisma migrate deploy` (`npm run start:prod`).
-3. **Datos demo** (una sola vez, desde tu máquina):
+1. **Render:** *New → Blueprint* sobre este repo. Crea la base `servicio-db` y el servicio `servicio-back`, y conecta `DATABASE_URL` sola. Completar `UNLOCK_CODE_ENCRYPTION_KEY` (`openssl rand -hex 32`) y `CORS_ORIGINS` (URL del frontend). Los secretos JWT se generan solos. Cada push a `main` redespliega; al arrancar corre `prisma migrate deploy` (`npm run start:prod`).
+2. **Datos demo** (una sola vez, desde tu máquina, con la *External Database URL* de `servicio-db` en Render → Connect):
 
    ```bash
    cd servicio_back
-   DATABASE_URL="<url de Neon>" SEED_PASSWORD="<contraseña demo>" npm run prisma:seed
+   DATABASE_URL="<External Database URL>?sslmode=require" SEED_PASSWORD="<contraseña demo>" npm run prisma:seed
    ```
 
-4. Verificar `https://<backend>.onrender.com/api` (Swagger). El plan gratuito de Render se duerme tras 15 min sin tráfico: la primera petición tarda ~1 min.
+3. Verificar `https://<backend>.onrender.com/api` (Swagger). El plan gratuito de Render se duerme tras 15 min sin tráfico: la primera petición tarda ~1 min. La base gratuita de Render vence a los 30 días de creada (se puede pasar a un plan pago o recrear).
 
 ## Scripts (`servicio_back/`)
 
