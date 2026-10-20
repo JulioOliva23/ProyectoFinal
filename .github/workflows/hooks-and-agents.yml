@@ -1,5 +1,6 @@
-# Runs the same checks as the local Git hook and validates the subagents,
-# publishing a readable report in each run's summary (Actions → run → Summary).
+# Runs the same checks as the local Git hook, tests the Claude Code hooks and
+# validates the subagents, publishing a readable report in each run's summary
+# (Actions → run → Summary).
 name: Hooks & Subagents
 
 on:
@@ -88,4 +89,24 @@ jobs:
           {
             echo "## 🤖 Subagents"
             ./scripts/hooks/check-agents.sh
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  claude-hooks:
+    name: Claude Code hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Test PreToolUse guard (.claude/settings.json)
+        run: |
+          set -o pipefail
+          {
+            echo "## 🛡️ Claude Code hooks"
+            echo "PreToolUse \`claude-guard.sh\`: casos permitidos (0) y bloqueados (2)."
+            echo
+            ./scripts/hooks/test-claude-hooks.sh
           } | tee -a "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,120 @@
+# Continuous integration for servicio_back: every push to main and every PR
+# runs lint, static types, unit tests with coverage, the production build and
+# the e2e suite against a real PostgreSQL 17. Render deploys main only after
+# these checks pass (render.yaml → autoDeployTrigger: checksPass).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: servicio_back
+
+env:
+  # Dummy values for CI only: no real secret is used or stored (GEN-11).
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/servicio_tecnico
+  TEST_DATABASE_URL: postgresql://ci:ci@localhost:5432/servicio_tecnico
+  JWT_SECRET: ci-only-jwt-secret-change-me-32-chars
+  JWT_REFRESH_SECRET: ci-only-refresh-secret-change-me-32-chars
+  JWT_EXPIRES_IN: 15m
+  JWT_REFRESH_EXPIRES_IN: 7d
+  UNLOCK_CODE_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+
+jobs:
+  quality:
+    name: Lint, types, unit tests & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: servicio_back/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          npm test -- --ci --coverage --coverageReporters=text-summary 2>&1 | tee unit.log
+
+      - name: Build
+        run: npm run build
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## 🧪 Unit tests (Jest)"
+            echo '```'
+            grep -E 'Tests:|Test Suites:|Statements|Branches|Functions|Lines' unit.log 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  e2e:
+    name: E2E (PostgreSQL 17)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: servicio_tecnico
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d servicio_tecnico"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: servicio_back/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # global-setup applies the committed migrations before the suites run.
+      - name: E2E tests
+        run: |
+          set -o pipefail
+          npm run test:e2e -- --ci --runInBand 2>&1 | tee e2e.log
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## 🔁 E2E (Supertest + PostgreSQL)"
+            echo '```'
+            grep -E '✓|✕|Tests:|Test Suites:' e2e.log 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,6 +1,6 @@
 # AI_CONTEXT — Sistema de Gestión para Servicio Técnico de Celulares
 
-Fuente de verdad para cualquier agente de IA (Claude Code, Cursor, subagentes en `.ai/agents/`) y para el equipo. Si una instrucción de un prompt contradice este archivo, **gana este archivo** y se reporta la contradicción.
+Fuente de verdad para cualquier agente de IA (Claude Code, Cursor, subagentes en `.claude/agents/`) y para el equipo. Si una instrucción de un prompt contradice este archivo, **gana este archivo** y se reporta la contradicción.
 
 Arquitectura heredada del proyecto *P04 — Taller Mecánico* (`pdis/`): mismo stack, mismas capas, mismas convenciones `GEN-`/`BE-`. Solo cambia el dominio. Las reglas técnicas detalladas viven en [`ai-context/constitution/`](ai-context/constitution/).
 
@@ -25,12 +25,19 @@ Arquitectura heredada del proyecto *P04 — Taller Mecánico* (`pdis/`): mismo s
 PF/
 ├── AI_CONTEXT.md                 ← este archivo
 ├── .cursorrules / CLAUDE.md      ← punteros a este archivo
-├── .ai/agents/                   ← subagentes (.claude/agents → symlink)
+├── .claude/agents/               ← subagentes (validados en CI por scripts/hooks/check-agents.sh)
+├── .claude/settings.json         ← hooks de Claude Code (scripts/hooks/claude-*.sh)
 ├── .husky/pre-commit             → scripts/hooks/hook-pre-commit.sh
+├── .github/workflows/            ← CI (lint, tests, build, e2e) · Hooks & Subagents
+├── render.yaml                   ← despliegue en Render (PostgreSQL + API)
 ├── ai-context/
 │   ├── constitution/             ← GEN · BE · FE · TL
+│   ├── 00-contexto-problema.md   ← ficha del problema (reconstruida)
+│   ├── backlog/                  ← épicas E1–E4 con US-xx y Gherkin
+│   ├── backlog.md                ← orden de construcción del front (US-Fxx)
 │   ├── supuestos.md              ← SUP-xx
-│   └── backlog.md                ← US-xx de servicio_front
+│   ├── preguntas-cliente.md      ← P-xx
+│   └── registro-respuestas-cliente.md
 ├── tools/docker-compose.yml      ← PostgreSQL 17 local (puerto 5433)
 └── servicio_back/                ← (antes taller_back)
     ├── prisma/schema.prisma      ← esquema del nuevo dominio
@@ -131,7 +138,7 @@ La tabla de transiciones y los roles permitidos están en `src/domain/work-order
 ### 6.4 Budgets / Estimates — `modules/budgets`
 - `POST /work-orders/:id/budgets` crea versión `DRAFT`: ítems `LABOR` (micro-soldadura, ensamblaje…) y `PART` (validando RN-10). Subtotales y total calculados en el service con `Prisma.Decimal`.
 - `POST /budgets/:id/send` → `SENT`, fija `expiresAt`, transiciona la OT a `BUDGETED`.
-- `POST /budgets/:id/approve|reject` (`decisionChannel`: IN_PERSON, PHONE, WHATSAPP) → transiciona la OT a `APPROVED` o `CANCELLED`. Rechaza si `expiresAt < now` (RN-08).
+- `POST /budgets/:id/approve|reject` (`decisionChannel`: IN_PERSON, PHONE, WHATSAPP, EMAIL) → transiciona la OT a `APPROVED` o `CANCELLED`. Rechaza si `expiresAt < now` (RN-08).
 - Estados del presupuesto: `DRAFT · SENT · APPROVED · REJECTED · EXPIRED · SUPERSEDED`.
 
 ### 6.5 Spare Parts Inventory — `modules/spare-parts`
@@ -159,11 +166,12 @@ Contrato: `WorkOrderTransitionHook { name; supports(ctx); handle(ctx, tx) }`, re
 - ✅ Módulos portados: `auth`, `users`, `devices`, `spare-parts`, `budgets`, `work-orders` (+ `work-order-transitions`).
 - ✅ Husky instalado en la raíz (`npm install` → `prepare: husky`); `.husky/pre-commit` delega en `scripts/hooks/hook-pre-commit.sh`. **No usar `npx husky init`**: sobrescribe el hook con `npm test`.
 - ✅ Tests: unitarios en `unit-tests/` (`npm test`) y e2e en `test/` (`npm run test:e2e`, base `TEST_DATABASE_URL` separada, migrada automáticamente).
-- ❌ No se migran: `work-bays`, `warranties`, `settlements`, `additional-findings`, `inventory-discrepancies`, `public-tracking` (reemplazado por el rol `CUSTOMER`). Reintroducirlos exige un `SUP-xx`.
-- ✅ Documentación: [`frontend.md`](ai-context/constitution/frontend.md), [`tools.md`](ai-context/constitution/tools.md), [`supuestos.md`](ai-context/supuestos.md), [`backlog.md`](ai-context/backlog.md).
+- ❌ No se migran: `work-bays`, `warranties`, `settlements`, `additional-findings`, `inventory-discrepancies`. Reintroducirlos exige un `SUP-xx`. La consulta pública no se portó como módulo: vive en `work-orders` (`PublicTrackingController`, SUP-05).
+- ✅ Documentación: [`frontend.md`](ai-context/constitution/frontend.md), [`tools.md`](ai-context/constitution/tools.md), [`supuestos.md`](ai-context/supuestos.md), [`backlog.md`](ai-context/backlog.md), épicas en [`backlog/`](ai-context/backlog/), [`preguntas-cliente.md`](ai-context/preguntas-cliente.md) y [`registro-respuestas-cliente.md`](ai-context/registro-respuestas-cliente.md).
 - ✅ SUP-05 confirmado e implementado (código de seguimiento + `POST /public/tracking`).
 - ✅ Migración `20261019120000_add_work_order_tracking_code` aplicada el 2026-10-19 en `servicio_tecnico` y `servicio_tecnico_test` (columna `work_orders.tracking_code_hash`, nullable).
-- ⏭ Pendiente: implementar `servicio_front` según `backlog.md`.
+- ✅ `servicio_front` implementado en `frontPF/` (US-F00 a US-F13 y US-F15).
+- ⏭ Pendiente: administración de usuarios y modelos en el front (US-21 / US-F14), contador de stock bajo en el menú (US-16) y sesión de relevamiento con el cliente (`preguntas-cliente.md`).
 
 ### Arranque local
 

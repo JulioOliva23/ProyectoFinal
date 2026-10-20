@@ -17,7 +17,8 @@ services:
     # Applies pending migrations, then starts the compiled app.
     startCommand: npm run start:prod
     healthCheckPath: /api
-    autoDeploy: true
+    # Deploy main only after the GitHub checks (CI) pass.
+    autoDeployTrigger: checksPass
     envVars:
       - key: NODE_VERSION
         value: "24"
