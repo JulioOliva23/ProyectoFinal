@@ -15,7 +15,15 @@ red()   { printf '\033[31m%s\033[0m\n' "$*"; }
 green() { printf '\033[32m%s\033[0m\n' "$*"; }
 step()  { printf '\033[36m▶ %s\033[0m\n' "$*"; }
 
-STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
+# In CI there is no index: HOOK_BASE_REF makes the hook check the files
+# changed between that ref and HEAD instead of the staged ones ("ALL" = every file).
+if [ "${HOOK_BASE_REF:-}" = "ALL" ]; then
+  STAGED="$(git ls-files)"
+elif [ -n "${HOOK_BASE_REF:-}" ]; then
+  STAGED="$(git diff --name-only --diff-filter=ACMR "$HOOK_BASE_REF"...HEAD)"
+else
+  STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
+fi
 [ -z "$STAGED" ] && exit 0
 
 # GEN-11: never commit real environment files.
