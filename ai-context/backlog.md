@@ -4,6 +4,8 @@ Historias de usuario priorizadas para construir el frontend sobre la API ya impl
 
 Prioridad: **P1** (MVP: sin esto no se puede operar), **P2** (completa el flujo), **P3** (mejora). El orden de la tabla es el orden sugerido de construcción.
 
+Las historias funcionales completas (backend + frontend, con criterios Gherkin y estado de implementación) están en [backlog/](backlog/), agrupadas por épica. Equivalencias: US-F01 → US-00 · US-F02 → US-03 · US-F03 → US-01, US-02 · US-F04 → US-04, US-05, US-06, US-19, US-20 · US-F05 → US-09 · US-F06 → US-10, US-11, US-12 · US-F07 → US-15 · US-F08 → US-07 · US-F09 → US-08 · US-F10 → US-17, US-18 · US-F11 → US-13 · US-F12 → US-14 · US-F13 → US-16 · US-F14 → US-21 · US-F15 → US-12.
+
 | ID | Historia | Prioridad | Rol | Endpoints | Depende de |
 | --- | --- | --- | --- | --- | --- |
 | US-F00 | Base del proyecto | P1 | — | `/api-json` | — |
