@@ -5,6 +5,7 @@
   "scripts": {
     "build": "prisma generate && nest build",
     "start": "nest start",
+    "start:prod": "prisma migrate deploy && node dist/main",
     "start:dev": "nest start --watch",
     "lint": "eslint \"{src,test,unit-tests,prisma}/**/*.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -83,5 +84,8 @@
     "esbuild@0.28.2": true,
     "@scarf/scarf": false,
     "fsevents": false
+  },
+  "engines": {
+    "node": ">=24"
   }
 }
