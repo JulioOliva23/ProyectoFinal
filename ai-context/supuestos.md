@@ -6,18 +6,20 @@ Estados: **Implementado** (en código, pendiente de validar con el cliente) · *
 
 Cuando el código depende de un supuesto se marca así: `// SUP-NN: assumed behavior, pending client confirmation`.
 
-| ID | Supuesto | Estado | Riesgo | Reglas | US |
-| --- | --- | --- | --- | --- | --- |
-| [SUP-01](#sup-01) | IMEI obligatorio y validado con Luhn en el check-in | Implementado | Medio | RN-01, RN-02 | US-F03 |
-| [SUP-02](#sup-02) | Stock reservado atómicamente al pasar a reparación; bloqueo si falta | Implementado | Alto | RN-09, RN-11 | US-F07 |
-| [SUP-03](#sup-03) | Auditoría inmutable reforzada por triggers en BD | Implementado | Bajo | RN-12 | US-F09 |
-| [SUP-04](#sup-04) | Los presupuestos técnicos vencen a los 7 días | Implementado | Medio | RN-08 | US-F06 |
-| [SUP-05](#sup-05) | Portal del cliente: cuenta `CUSTOMER` **y** número de OT + código de seguimiento | **Confirmado** (implementado y migrado) | Alto | RN-03, RN-14 | US-F03, US-F10 |
-| [SUP-06](#sup-06) | Un dispositivo se identifica por un único IMEI (el principal) | Implementado | Medio | RN-02, RN-13 | US-F03 |
-| [SUP-07](#sup-07) | Refresh token en `sessionStorage` hasta tener cookie `httpOnly` | Pendiente | Medio | — | US-F01 |
-| [SUP-08](#sup-08) | Una OT aprobada no se cancela; no hay liberación de reservas | Implementado | Medio | RN-04, RN-09 | US-F07 |
-| [SUP-09](#sup-09) | El código de desbloqueo se cifra (reversible), no se hashea | Implementado | Alto | RN-03 | US-F03, US-F08 |
-| [SUP-10](#sup-10) | Moneda única BOB | Implementado | Bajo | RN-15 | US-F05 |
+Riesgo: **Alto** (si se refuta, cambia el modelo de datos, la máquina de estados o el alcance) · **Medio** (exige reescribir flujos o permisos) · **Bajo** (ajuste localizado).
+
+| ID | Supuesto | Estado | Riesgo | Reglas | Épica / US | Front | Pregunta |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| [SUP-01](#sup-01) | IMEI obligatorio y validado con Luhn en el check-in | Implementado | Medio | RN-01, RN-02 | E1 / US-01 | US-F03 | [P-06](preguntas-cliente.md#p-06) |
+| [SUP-02](#sup-02) | Stock reservado atómicamente al pasar a reparación; bloqueo si falta | Implementado | Alto | RN-09, RN-11 | E3 / US-15 | US-F07 | [P-09](preguntas-cliente.md#p-09), [P-10](preguntas-cliente.md#p-10) |
+| [SUP-03](#sup-03) | Auditoría inmutable reforzada por triggers en BD | Implementado | Bajo | RN-12 | E1 / US-08 | US-F09 | [P-20](preguntas-cliente.md#p-20) |
+| [SUP-04](#sup-04) | Los presupuestos técnicos vencen a los 7 días | Implementado | Medio | RN-08 | E2 / US-12 | US-F06, US-F15 | [P-08](preguntas-cliente.md#p-08) |
+| [SUP-05](#sup-05) | Portal del cliente: cuenta `CUSTOMER` **y** número de OT + código de seguimiento | **Confirmado** (implementado y migrado) | Alto | RN-03, RN-14 | E4 / US-17, US-18, US-19 | US-F03, US-F10 | [P-18](preguntas-cliente.md#p-18) |
+| [SUP-06](#sup-06) | Un dispositivo se identifica por un único IMEI (el principal) | Implementado | Medio | RN-02, RN-13 | E1 / US-01, US-02 | US-F03 | [P-07](preguntas-cliente.md#p-07) |
+| [SUP-07](#sup-07) | Refresh token en `sessionStorage` hasta tener cookie `httpOnly` | Pendiente | Medio | — | E1 / US-00 | US-F01 | — (decisión técnica) |
+| [SUP-08](#sup-08) | Una OT aprobada no se cancela; no hay liberación de reservas | Implementado | Medio | RN-04, RN-09 | E3 / US-15 | US-F07 | [P-11](preguntas-cliente.md#p-11) |
+| [SUP-09](#sup-09) | El código de desbloqueo se cifra (reversible), no se hashea | Implementado | Alto | RN-03 | E1 / US-01, US-07 | US-F03, US-F08 | [P-15](preguntas-cliente.md#p-15), [P-16](preguntas-cliente.md#p-16) |
+| [SUP-10](#sup-10) | Moneda única BOB | Implementado | Bajo | RN-15 | E2 / US-09 | US-F05 | [P-21](preguntas-cliente.md#p-21) |
 
 ---
 
@@ -100,3 +102,27 @@ Cuando el código depende de un supuesto se marca así: `// SUP-NN: assumed beha
 **Moneda única**
 
 - **Supuesto:** todos los importes en BOB, como en el taller (`budgets.currency` con default `BOB`). No hay conversión de moneda.
+
+---
+
+## Trazabilidad: módulos, reglas y supuestos
+
+| Módulo | Reglas de negocio | Supuestos | Épica |
+| --- | --- | --- | --- |
+| `auth`, `users` | RN-06, RN-07, RN-14 | SUP-07 | [E1](backlog/E1-recepcion-asignacion-y-ciclo-de-la-orden.md) |
+| `work-orders` (+ `work-order-transitions`) | RN-01, RN-03, RN-04, RN-05, RN-06, RN-12, RN-14 | SUP-03, SUP-05, SUP-08, SUP-09 | [E1](backlog/E1-recepcion-asignacion-y-ciclo-de-la-orden.md), [E4](backlog/E4-seguimiento-y-comunicacion-con-el-cliente.md) |
+| `devices` | RN-02, RN-13 | SUP-01, SUP-06 | [E1](backlog/E1-recepcion-asignacion-y-ciclo-de-la-orden.md) |
+| `budgets` | RN-05, RN-07, RN-08, RN-10, RN-15 | SUP-04, SUP-10 | [E2](backlog/E2-presupuestos-y-aprobacion-del-cliente.md) |
+| `spare-parts` | RN-07, RN-09, RN-10, RN-11, RN-15 | SUP-02, SUP-08 | [E3](backlog/E3-inventario-de-repuestos.md) |
+
+## Fuera del MVP
+
+Módulos del proyecto base (`pdis/taller_back`) que no se portaron. Reintroducir cualquiera exige un `SUP-xx` nuevo y su pregunta al cliente.
+
+| Módulo del taller | Motivo | Pregunta |
+| --- | --- | --- |
+| `work-bays` | El servicio técnico no trabaja con bahías físicas | — |
+| `warranties` | Garantía no relevada | [P-14](preguntas-cliente.md#p-14) |
+| `settlements` | Liquidación y cobro no relevados; el sistema solo calcula el presupuesto | [P-12](preguntas-cliente.md#p-12), [P-21](preguntas-cliente.md#p-21) |
+| `additional-findings` | Una falla nueva se resuelve con otra versión de presupuesto | [P-13](preguntas-cliente.md#p-13) |
+| `inventory-discrepancies` | Se cubre con ajustes de stock con motivo (US-14) | [P-23](preguntas-cliente.md#p-23) |

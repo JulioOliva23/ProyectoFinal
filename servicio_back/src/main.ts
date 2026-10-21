@@ -23,6 +23,10 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  // Run onModuleDestroy on SIGTERM/SIGINT so PrismaService closes its
+  // connections when the host restarts the service.
+  app.enableShutdownHooks();
+
   // BE-22: versioned REST API base path.
   app.setGlobalPrefix('api/v1');
 
