@@ -3,7 +3,9 @@ import { Prisma } from '../../generated/prisma/client';
 import { WorkOrderStatus } from '../../common/enums/work-order-status.enum';
 import { CustomerCheckInDto, DeviceCheckInDto } from './dto/device-check-in.dto';
 import { DeviceHistoryResponseDto } from './dto/device-history.response.dto';
-import { DeviceModelResponseDto } from './dto/device-model.dto';
+import { DeviceModelResponseDto, UpdateDeviceModelDto } from './dto/device-model.dto';
+import { UserRole } from '../../common/enums/user-role.enum';
+import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { DeviceRepository } from './repositories/device.repository';
 
 export interface CheckedInDevice {
@@ -38,12 +40,30 @@ export class DevicesService {
     };
   }
 
-  createModel(brand: string, model: string): Promise<DeviceModelResponseDto> {
+  async createModel(brand: string, model: string): Promise<DeviceModelResponseDto> {
+    await this.assertModelNameFree(brand, model);
     return this.repository.createModel(brand, model);
   }
 
-  listModels(): Promise<DeviceModelResponseDto[]> {
-    return this.repository.listModels();
+  // US-21: rename or (de)activate. An inactive model is hidden from intake
+  // (checkIn rejects it) but its devices, history and compatibilities stay.
+  async updateModel(id: string, dto: UpdateDeviceModelDto): Promise<DeviceModelResponseDto> {
+    const current = await this.repository.findModelById(id);
+    if (!current) throw new NotFoundException('Device model not found');
+    const brand = dto.brand ?? current.brand;
+    const model = dto.model ?? current.model;
+    if (brand !== current.brand || model !== current.model) await this.assertModelNameFree(brand, model, id);
+    return this.repository.updateModel(id, { brand: dto.brand, model: dto.model, isActive: dto.isActive });
+  }
+
+  // Inactive models are listed only for the admin catalog.
+  listModels(viewer: AuthenticatedUser, includeInactive = false): Promise<DeviceModelResponseDto[]> {
+    return this.repository.listModels(includeInactive && viewer.role === UserRole.ADMIN);
+  }
+
+  private async assertModelNameFree(brand: string, model: string, exceptId?: string): Promise<void> {
+    const existing = await this.repository.findModelByName(brand, model);
+    if (existing && existing.id !== exceptId) throw new ConflictException('Device model already registered for this brand');
   }
 
   // RN-01 / RN-13: reuse the device registered under this IMEI (keeping its

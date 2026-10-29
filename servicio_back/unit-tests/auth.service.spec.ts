@@ -104,6 +104,23 @@ describe('AuthService (US-00)', () => {
     expect(result.accessToken).toBe('signed-token');
   });
 
+  it('rejects a refresh token minted before the last admin change to the account (US-21)', async () => {
+    const changedAt = new Date('2026-10-29T12:00:00.500Z');
+    jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-old', iat: changedAt.getTime() / 1000 - 60, exp: 2_000_000_000 });
+    repository.findActiveById.mockResolvedValue({ ...user, updatedAt: changedAt });
+
+    await expect(service.refresh({ refreshToken: 'old-refresh' })).rejects.toThrow(UnauthorizedException);
+    expect(revocation.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts a refresh token minted after the change, even within the same second (US-21)', async () => {
+    const changedAt = new Date('2026-10-29T12:00:00.500Z');
+    jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-new', iat: Math.floor(changedAt.getTime() / 1000), exp: 2_000_000_000 });
+    repository.findActiveById.mockResolvedValue({ ...user, updatedAt: changedAt });
+
+    await expect(service.refresh({ refreshToken: 'new-refresh' })).resolves.toMatchObject({ id: user.id });
+  });
+
   it('rotates the used refresh token: revokes the old jti and mints a new pair (BE-E10)', async () => {
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-used', exp: 1_000_000 });
     repository.findActiveById.mockResolvedValue(user);

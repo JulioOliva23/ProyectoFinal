@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
+import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { DeviceHistoryResponseDto } from './dto/device-history.response.dto';
-import { CreateDeviceModelDto, DeviceModelResponseDto } from './dto/device-model.dto';
+import { CreateDeviceModelDto, DeviceModelResponseDto, QueryDeviceModelsDto, UpdateDeviceModelDto } from './dto/device-model.dto';
 import { DevicesService } from './devices.service';
 import { ParseImeiPipe } from './pipes/parse-imei.pipe';
 
@@ -25,10 +27,10 @@ export class DevicesController {
 
   @Get('device-models')
   @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Listar modelos comerciales activos' })
+  @ApiOperation({ summary: 'Listar modelos comerciales activos (ADMIN puede incluir desactivados)' })
   @ApiResponse({ status: 200, type: [DeviceModelResponseDto] })
-  listModels(): Promise<DeviceModelResponseDto[]> {
-    return this.service.listModels();
+  listModels(@Query() query: QueryDeviceModelsDto, @CurrentUser() user: AuthenticatedUser): Promise<DeviceModelResponseDto[]> {
+    return this.service.listModels(user, query.includeInactive);
   }
 
   @Post('device-models')
@@ -38,5 +40,14 @@ export class DevicesController {
   @ApiResponse({ status: 409, description: 'Marca y modelo ya registrados' })
   createModel(@Body() dto: CreateDeviceModelDto): Promise<DeviceModelResponseDto> {
     return this.service.createModel(dto.brand, dto.model);
+  }
+
+  @Patch('device-models/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Renombrar o activar/desactivar un modelo comercial (US-21)' })
+  @ApiResponse({ status: 200, type: DeviceModelResponseDto })
+  @ApiResponse({ status: 409, description: 'Marca y modelo ya registrados' })
+  updateModel(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateDeviceModelDto): Promise<DeviceModelResponseDto> {
+    return this.service.updateModel(id, dto);
   }
 }

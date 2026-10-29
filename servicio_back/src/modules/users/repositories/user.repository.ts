@@ -16,6 +16,10 @@ export class UserRepository {
     return this.prisma.user.findFirst({ where: { id, isActive: true } });
   }
 
+  findById(id: string) {
+    return this.prisma.user.findUnique({ where: { id }, select: PUBLIC_USER });
+  }
+
   findActiveWithRole(id: string, role: string) {
     return this.prisma.user.findFirst({ where: { id, role, isActive: true }, select: PUBLIC_USER });
   }
@@ -28,16 +32,17 @@ export class UserRepository {
     return this.prisma.user.create({ data, select: PUBLIC_USER });
   }
 
-  listActive(role?: string) {
+  list(filter: { role?: string; includeInactive: boolean }) {
     return this.prisma.user.findMany({
-      where: { isActive: true, ...(role ? { role } : {}) },
+      where: { ...(filter.includeInactive ? {} : { isActive: true }), ...(filter.role ? { role: filter.role } : {}) },
       select: PUBLIC_USER,
-      orderBy: { fullName: 'asc' },
+      orderBy: [{ isActive: 'desc' }, { fullName: 'asc' }],
     });
   }
 
-  // BE-18: logical deactivation only.
-  deactivate(id: string) {
-    return this.prisma.user.update({ where: { id }, data: { isActive: false }, select: PUBLIC_USER });
+  // Every write bumps updated_at, which also ends the user's older refresh
+  // tokens (AuthService.refresh).
+  update(id: string, data: { fullName?: string; role?: string; passwordHash?: string; isActive?: boolean }) {
+    return this.prisma.user.update({ where: { id }, data, select: PUBLIC_USER });
   }
 }
