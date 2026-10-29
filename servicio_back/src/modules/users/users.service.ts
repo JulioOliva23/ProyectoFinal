@@ -1,7 +1,8 @@
 import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { UserRole } from '../../common/enums/user-role.enum';
-import { CreateUserDto } from './dto/create-user.dto';
+import { AuthenticatedUser } from '../../common/types/authenticated-user';
+import { CreateUserDto, QueryUsersDto, UpdateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user.response.dto';
 import { UserRepository } from './repositories/user.repository';
 
@@ -32,13 +33,44 @@ export class UsersService {
     return toResponse(user);
   }
 
-  async list(role?: UserRole): Promise<UserResponseDto[]> {
-    return (await this.repository.listActive(role)).map(toResponse);
+  // US-21: inactive accounts are listed only for ADMIN; everyone else keeps
+  // the active-only list (e.g. reception picking a technician, RN-06).
+  async list(query: QueryUsersDto, viewer: AuthenticatedUser): Promise<UserResponseDto[]> {
+    const includeInactive = viewer.role === UserRole.ADMIN && query.includeInactive === true;
+    return (await this.repository.list({ role: query.role, includeInactive })).map(toResponse);
   }
 
-  async deactivate(id: string): Promise<UserResponseDto> {
-    if (!(await this.repository.findActiveById(id))) throw new NotFoundException('User not found');
-    return toResponse(await this.repository.deactivate(id));
+  // US-21: name and role. A CUSTOMER account is tied to its customer record
+  // (RN-14), so it never becomes staff and staff never becomes CUSTOMER.
+  async update(id: string, dto: UpdateUserDto, actor: AuthenticatedUser): Promise<UserResponseDto> {
+    const user = await this.requireUser(id);
+    if (dto.role && dto.role !== user.role) {
+      if (user.role === UserRole.CUSTOMER || dto.role === UserRole.CUSTOMER) {
+        throw new UnprocessableEntityException('RN-14: customer accounts cannot change role');
+      }
+      assertNotSelf(id, actor, 'change your own role');
+    }
+    return toResponse(await this.repository.update(id, { fullName: dto.fullName, role: dto.role }));
+  }
+
+  // US-21: the admin sets a new password; the user's older refresh tokens
+  // stop working because the update bumps updated_at.
+  async resetPassword(id: string, password: string): Promise<void> {
+    await this.requireUser(id);
+    await this.repository.update(id, { passwordHash: await argon2.hash(password) });
+  }
+
+  async deactivate(id: string, actor: AuthenticatedUser): Promise<UserResponseDto> {
+    const user = await this.requireUser(id);
+    if (!user.isActive) throw new NotFoundException('User not found');
+    assertNotSelf(id, actor, 'deactivate your own account');
+    return toResponse(await this.repository.update(id, { isActive: false }));
+  }
+
+  async activate(id: string): Promise<UserResponseDto> {
+    const user = await this.requireUser(id);
+    if (user.isActive) return toResponse(user);
+    return toResponse(await this.repository.update(id, { isActive: true }));
   }
 
   // RN-06: used by work orders to validate an assignment target.
@@ -47,6 +79,17 @@ export class UsersService {
       throw new UnprocessableEntityException('RN-06: assignee must be an active technician');
     }
   }
+
+  private async requireUser(id: string): Promise<UserRow> {
+    const user = await this.repository.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+}
+
+// An admin cannot lock themself out (and leave the shop without an admin).
+function assertNotSelf(id: string, actor: AuthenticatedUser, action: string): void {
+  if (id === actor.id) throw new UnprocessableEntityException(`You cannot ${action}`);
 }
 
 function toResponse(user: UserRow): UserResponseDto {

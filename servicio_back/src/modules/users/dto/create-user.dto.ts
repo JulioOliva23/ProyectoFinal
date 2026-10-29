@@ -1,6 +1,20 @@
+import { applyDecorators } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, IsUUID, Length, Matches, ValidateIf } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsEnum, IsOptional, IsString, IsUUID, Length, Matches, ValidateIf } from 'class-validator';
 import { UserRole } from '../../../common/enums/user-role.enum';
+
+const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+
+// Same rules for account creation and admin password resets.
+function IsStrongPassword() {
+  return applyDecorators(
+    ApiProperty({ minLength: 10, maxLength: 128, description: 'Al menos una minúscula, una mayúscula y un dígito' }),
+    IsString(),
+    Length(10, 128),
+    Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: 'password must contain lowercase, uppercase and a digit' }),
+  );
+}
 
 export class CreateUserDto {
   @ApiProperty({ example: 'tecnico01' })
@@ -8,13 +22,11 @@ export class CreateUserDto {
   @Matches(/^[a-z0-9._-]{3,80}$/, { message: 'username must be 3-80 lowercase letters, digits, dot, dash or underscore' })
   username!: string;
 
-  @ApiProperty({ minLength: 10, maxLength: 128 })
-  @IsString()
-  @Length(10, 128)
-  @Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: 'password must contain lowercase, uppercase and a digit' })
+  @IsStrongPassword()
   password!: string;
 
   @ApiProperty({ example: 'Ana Pérez' })
+  @Transform(trim)
   @IsString()
   @Length(3, 150)
   fullName!: string;
@@ -30,9 +42,37 @@ export class CreateUserDto {
   customerId?: string;
 }
 
+// US-21: basic data an admin may edit. Username and customer binding are fixed.
+export class UpdateUserDto {
+  @ApiPropertyOptional({ example: 'Ana Pérez' })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @Length(3, 150)
+  fullName?: string;
+
+  @ApiPropertyOptional({ enum: UserRole })
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
+}
+
+export class ResetPasswordDto {
+  @IsStrongPassword()
+  password!: string;
+}
+
 export class QueryUsersDto {
   @ApiPropertyOptional({ enum: UserRole })
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
+
+  // US-21: the admin screen also lists deactivated accounts. Ignored for
+  // other roles, so reception keeps getting active technicians only.
+  @ApiPropertyOptional({ default: false, description: 'Incluir usuarios desactivados (solo ADMIN)' })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => value === true || value === 'true')
+  @IsBoolean()
+  includeInactive?: boolean;
 }

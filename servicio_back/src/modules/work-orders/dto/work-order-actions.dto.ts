@@ -1,7 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEnum, IsOptional, IsString, IsUUID, Length, MaxLength } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
 import { WorkOrderStatus } from '../../../common/enums/work-order-status.enum';
+
+const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 export class AssignTechnicianDto {
   @ApiProperty({ format: 'uuid' })
@@ -38,4 +41,11 @@ export class QueryWorkOrdersDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   technicianId?: string;
+
+  @ApiPropertyOptional({ maxLength: 100, description: 'Número de OT (OT-000123 o 123), IMEI, nombre o teléfono del cliente' })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(100)
+  search?: string;
 }

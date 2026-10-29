@@ -1,4 +1,5 @@
 import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { UserRole } from '../src/common/enums/user-role.enum';
 import { Prisma } from '../src/generated/prisma/client';
 import { DevicesService } from '../src/modules/devices/devices.service';
 import { DeviceRepository } from '../src/modules/devices/repositories/device.repository';
@@ -18,6 +19,11 @@ describe('DevicesService', () => {
       create: jest.fn().mockResolvedValue({ id: 'dev-1', customerId: 'cust-1', deviceModelId: 'model-1' }),
       updateOwnership: jest.fn().mockResolvedValue({ id: 'dev-0', customerId: 'cust-1', deviceModelId: 'model-1' }),
       findHistoryByImei: jest.fn(),
+      findModelById: jest.fn().mockResolvedValue({ id: 'model-1', brand: 'Apple', model: 'iPhone 13', isActive: true }),
+      findModelByName: jest.fn().mockResolvedValue(null),
+      createModel: jest.fn().mockImplementation(async (brand: string, model: string) => ({ id: 'model-2', brand, model, isActive: true })),
+      updateModel: jest.fn().mockImplementation(async (id: string, data: object) => ({ id, brand: 'Apple', model: 'iPhone 13', isActive: true, ...data })),
+      listModels: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<DeviceRepository>;
     service = new DevicesService(repository);
   });
@@ -46,5 +52,48 @@ describe('DevicesService', () => {
   it('returns 404 for an unregistered IMEI lookup', async () => {
     repository.findHistoryByImei.mockResolvedValue(null);
     await expect(service.getHistoryByImei('352099001761481')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  describe('device model catalog (US-21)', () => {
+    it('creates a model when the brand + model pair is free', async () => {
+      await expect(service.createModel('Samsung', 'Galaxy A54')).resolves.toMatchObject({ id: 'model-2', brand: 'Samsung' });
+      expect(repository.findModelByName).toHaveBeenCalledWith('Samsung', 'Galaxy A54');
+    });
+
+    it('rejects a duplicate regardless of letter case', async () => {
+      repository.findModelByName.mockResolvedValue({ id: 'model-1', brand: 'Apple', model: 'iPhone 13', isActive: true });
+      await expect(service.createModel('apple', 'IPHONE 13')).rejects.toBeInstanceOf(ConflictException);
+      expect(repository.createModel).not.toHaveBeenCalled();
+    });
+
+    it('renames a model unless the new name belongs to another one', async () => {
+      await expect(service.updateModel('model-1', { model: 'iPhone 13 mini' })).resolves.toMatchObject({ model: 'iPhone 13 mini' });
+      expect(repository.findModelByName).toHaveBeenCalledWith('Apple', 'iPhone 13 mini');
+
+      repository.findModelByName.mockResolvedValue({ id: 'model-9', brand: 'Apple', model: 'iPhone 14', isActive: true });
+      await expect(service.updateModel('model-1', { model: 'iPhone 14' })).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('accepts a case-only rename of the same model', async () => {
+      repository.findModelByName.mockResolvedValue({ id: 'model-1', brand: 'Apple', model: 'iPhone 13', isActive: true });
+      await expect(service.updateModel('model-1', { model: 'IPHONE 13' })).resolves.toMatchObject({ model: 'IPHONE 13' });
+    });
+
+    it('toggles activation without a name check', async () => {
+      await expect(service.updateModel('model-1', { isActive: false })).resolves.toMatchObject({ isActive: false });
+      expect(repository.findModelByName).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 for an unknown model', async () => {
+      repository.findModelById.mockResolvedValue(null);
+      await expect(service.updateModel('nope', { isActive: false })).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('lists inactive models only for ADMIN', async () => {
+      await service.listModels({ id: 'a', role: UserRole.ADMIN }, true);
+      expect(repository.listModels).toHaveBeenLastCalledWith(true);
+      await service.listModels({ id: 'r', role: UserRole.RECEPTIONIST }, true);
+      expect(repository.listModels).toHaveBeenLastCalledWith(false);
+    });
   });
 });

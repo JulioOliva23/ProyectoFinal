@@ -28,6 +28,7 @@ export interface AuthUser {
 interface RefreshTokenClaims {
   sub: string;
   jti?: string;
+  iat?: number;
   exp?: number;
 }
 
@@ -36,6 +37,7 @@ interface RefreshTokenClaims {
 type VerifiedRefreshToken = {
   sub: string;
   jti: string;
+  iat?: number;
   exp?: number;
 };
 
@@ -76,6 +78,13 @@ export class AuthService {
 
     const user = await this.repository.findActiveById(payload.sub);
     if (!user) throw new UnauthorizedException('Usuario no encontrado o inactivo');
+
+    // US-21: an admin edit (role, password, reactivation) bumps updated_at;
+    // refresh tokens minted before it no longer renew the session. Compared
+    // in whole seconds because `iat` has no milliseconds.
+    if (payload.iat !== undefined && user.updatedAt && payload.iat < Math.floor(user.updatedAt.getTime() / 1000)) {
+      throw new UnauthorizedException('La cuenta cambió, vuelva a iniciar sesión');
+    }
 
     // BE-E10 / US-00: reuse of a revoked jti means the token family leaked.
     // Revoke every refresh token of the user and reject before rotating.

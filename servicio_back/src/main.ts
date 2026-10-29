@@ -17,9 +17,10 @@ async function bootstrap(): Promise<void> {
 
   // BE-E09: CORS allowlist from CORS_ORIGINS (comma-separated). Defaults to
   // reflecting any origin for local development; set the variable to lock the
-  // accepted origins in production.
+  // accepted origins in production. `credentials` lets the frontend send
+  // cookies (withCredentials), needed for the httpOnly refresh cookie (SUP-07).
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((origin) => origin.trim()).filter(Boolean);
-  app.enableCors({ origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : true });
+  app.enableCors({ origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : true, credentials: true });
 
   // BE-11: strict global validation pipe.
   app.useGlobalPipes(
@@ -29,6 +30,10 @@ async function bootstrap(): Promise<void> {
       transform: true,
     }),
   );
+
+  // Run onModuleDestroy on SIGTERM/SIGINT so PrismaService closes its
+  // connections when the host restarts the service.
+  app.enableShutdownHooks();
 
   // BE-22: versioned REST API base path.
   app.setGlobalPrefix('api/v1');

@@ -151,7 +151,55 @@ describe('WorkOrdersService', () => {
 
   it('forces technicians to their own queue (RN-06)', async () => {
     await service.list({ page: 1, pageSize: 20, technicianId: 'someone-else' }, { id: 'tech-1', role: UserRole.TECHNICIAN });
-    expect(repository.list).toHaveBeenCalledWith({ status: undefined, technicianId: 'tech-1' }, 1, 20);
+    expect(repository.list).toHaveBeenCalledWith({ status: undefined, technicianId: 'tech-1', search: undefined }, 1, 20);
+  });
+
+  it('keeps the technician scope when searching (RN-06)', async () => {
+    await service.list({ page: 1, pageSize: 20, search: 'OT-000007' }, { id: 'tech-1', role: UserRole.TECHNICIAN });
+    expect(repository.list).toHaveBeenCalledWith({ status: undefined, technicianId: 'tech-1', search: { text: 'OT-000007', number: 7 } }, 1, 20);
+  });
+
+  it('passes the front desk filters through', async () => {
+    await service.list(
+      { page: 2, pageSize: 10, status: WorkOrderStatus.IN_REPAIR, technicianId: 'tech-9', search: 'Quispe' },
+      { id: 'recep-1', role: UserRole.RECEPTIONIST },
+    );
+    expect(repository.list).toHaveBeenCalledWith({ status: WorkOrderStatus.IN_REPAIR, technicianId: 'tech-9', search: { text: 'Quispe' } }, 2, 10);
+  });
+
+  describe('summary', () => {
+    beforeEach(() => {
+      repository.countByStatus = jest.fn().mockResolvedValue([
+        { status: WorkOrderStatus.RECEIVED, count: 3 },
+        { status: WorkOrderStatus.BUDGETED, count: 2 },
+        { status: WorkOrderStatus.READY_FOR_DELIVERY, count: 1 },
+        { status: WorkOrderStatus.DELIVERED, count: 40 },
+        { status: WorkOrderStatus.CANCELLED, count: 5 },
+      ]);
+      repository.countOverdue = jest.fn().mockResolvedValue(2);
+    });
+
+    it('counts active orders without the terminal states', async () => {
+      const summary = await service.summary();
+      expect(summary.active).toBe(6);
+      expect(summary.overdue).toBe(2);
+    });
+
+    it('lists every status, zeros included', async () => {
+      const { byStatus } = await service.summary();
+      expect(byStatus.map((entry) => entry.status)).toEqual(Object.values(WorkOrderStatus));
+      expect(byStatus.find((entry) => entry.status === WorkOrderStatus.IN_REPAIR)?.count).toBe(0);
+      expect(byStatus.find((entry) => entry.status === WorkOrderStatus.BUDGETED)?.count).toBe(2);
+    });
+
+    it('asks for overdue orders among the statuses the shop still works on', async () => {
+      const now = new Date('2026-10-29T12:00:00Z');
+      await service.summary(now);
+      const [statuses, at] = (repository.countOverdue as jest.Mock).mock.calls[0];
+      expect(statuses).not.toContain(WorkOrderStatus.READY_FOR_DELIVERY);
+      expect(statuses).not.toContain(WorkOrderStatus.DELIVERED);
+      expect(at).toBe(now);
+    });
   });
 
   it('returns only the transitions the viewer may trigger (FE-08)', async () => {

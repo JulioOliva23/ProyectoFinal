@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import type { WorkOrderSearch } from '../../../domain/work-orders/work-order-queries';
 
 export const WORK_ORDER_DETAIL = {
   id: true,
@@ -45,6 +46,19 @@ export type WorkOrderDetailRow = Prisma.WorkOrderGetPayload<{ select: typeof WOR
 export interface WorkOrderFilter {
   status?: string;
   technicianId?: string;
+  search?: WorkOrderSearch;
+}
+
+function searchWhere(search: WorkOrderSearch): Prisma.WorkOrderWhereInput {
+  const contains = { contains: search.text, mode: 'insensitive' } as const;
+  return {
+    OR: [
+      ...(search.number !== undefined ? [{ number: search.number }] : []),
+      { device: { imei: { contains: search.text } } },
+      { customer: { name: contains } },
+      { customer: { phone: contains } },
+    ],
+  };
 }
 
 @Injectable()
@@ -67,12 +81,22 @@ export class WorkOrderRepository {
     const where: Prisma.WorkOrderWhereInput = {
       ...(filter.status ? { status: filter.status } : {}),
       ...(filter.technicianId ? { technicianId: filter.technicianId } : {}),
+      ...(filter.search ? searchWhere(filter.search) : {}),
     };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.workOrder.findMany({ where, select: WORK_ORDER_DETAIL, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       this.prisma.workOrder.count({ where }),
     ]);
     return { rows, total };
+  }
+
+  async countByStatus(): Promise<Array<{ status: string; count: number }>> {
+    const groups = await this.prisma.workOrder.groupBy({ by: ['status'], _count: { _all: true } });
+    return groups.map((group) => ({ status: group.status, count: group._count._all }));
+  }
+
+  countOverdue(statuses: readonly string[], now: Date): Promise<number> {
+    return this.prisma.workOrder.count({ where: { status: { in: [...statuses] }, promisedAt: { lt: now } } });
   }
 
   // RN-14: customer view with the current (sent or approved) budget total.

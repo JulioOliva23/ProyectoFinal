@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 
-const MODEL = { id: true, brand: true, model: true } as const;
+const MODEL = { id: true, brand: true, model: true, isActive: true } as const;
 
 @Injectable()
 export class DeviceRepository {
@@ -39,12 +39,32 @@ export class DeviceRepository {
     return transaction.deviceModel.findFirst({ where: { id, isActive: true }, select: MODEL });
   }
 
+  findModelById(id: string) {
+    return this.prisma.deviceModel.findUnique({ where: { id }, select: MODEL });
+  }
+
+  // The unique index is case-sensitive; "apple"/"Apple" must still collide.
+  findModelByName(brand: string, model: string) {
+    return this.prisma.deviceModel.findFirst({
+      where: { brand: { equals: brand, mode: 'insensitive' }, model: { equals: model, mode: 'insensitive' } },
+      select: MODEL,
+    });
+  }
+
   createModel(brand: string, model: string) {
     return this.prisma.deviceModel.create({ data: { brand, model }, select: MODEL });
   }
 
-  listModels() {
-    return this.prisma.deviceModel.findMany({ where: { isActive: true }, select: MODEL, orderBy: [{ brand: 'asc' }, { model: 'asc' }] });
+  updateModel(id: string, data: { brand?: string; model?: string; isActive?: boolean }) {
+    return this.prisma.deviceModel.update({ where: { id }, data, select: MODEL });
+  }
+
+  listModels(includeInactive = false) {
+    return this.prisma.deviceModel.findMany({
+      where: includeInactive ? {} : { isActive: true },
+      select: MODEL,
+      orderBy: [{ brand: 'asc' }, { model: 'asc' }],
+    });
   }
 
   upsertCustomer(
