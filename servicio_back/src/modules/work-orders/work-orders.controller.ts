@@ -16,6 +16,7 @@ import {
   WorkOrderAuditEntryDto,
   WorkOrderResponseDto,
   WorkOrderStatusResponseDto,
+  WorkOrderSummaryDto,
 } from './dto/work-order.response.dto';
 import { WorkOrderTransitionService } from './services/work-order-transition.service';
 import { WorkOrdersService } from './work-orders.service';
@@ -43,10 +44,19 @@ export class WorkOrdersController {
 
   @Get()
   @Roles(...STAFF)
-  @ApiOperation({ summary: 'Listar OTs (técnico: solo asignadas, RN-06)' })
+  @ApiOperation({ summary: 'Listar OTs con filtro por estado, técnico y búsqueda (técnico: solo asignadas, RN-06)' })
   @ApiResponse({ status: 200, type: PaginatedWorkOrdersDto })
   list(@Query() query: QueryWorkOrdersDto, @CurrentUser() user: AuthenticatedUser): Promise<Paginated<WorkOrderResponseDto>> {
     return this.service.list(query, user);
+  }
+
+  // Declared before ':id' so "summary" is not taken for an id.
+  @Get('summary')
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+  @ApiOperation({ summary: 'Resumen para el panel de recepción: OTs activas, retrasadas y conteo por estado' })
+  @ApiResponse({ status: 200, type: WorkOrderSummaryDto })
+  summary(): Promise<WorkOrderSummaryDto> {
+    return this.service.summary();
   }
 
   @Get('mine')

@@ -87,3 +87,16 @@ export class CreatedWorkOrderResponseDto extends WorkOrderResponseDto {
 export class TrackingCodeResponseDto {
   @ApiProperty({ example: 'K7QM-3XPA' }) trackingCode!: string;
 }
+
+export class WorkOrderStatusCountDto {
+  @ApiProperty({ enum: WorkOrderStatus }) status!: WorkOrderStatus;
+  @ApiProperty() count!: number;
+}
+
+// Front desk dashboard: workload counters computed by the database.
+export class WorkOrderSummaryDto {
+  @ApiProperty({ description: 'OTs que siguen en el local (ni entregadas ni canceladas)' }) active!: number;
+  @ApiProperty({ description: 'OTs activas con la fecha compromiso vencida (sin contar las listas para entrega)' }) overdue!: number;
+  @ApiProperty({ type: [WorkOrderStatusCountDto], description: 'Una entrada por cada estado, incluidos los que están en cero' })
+  byStatus!: WorkOrderStatusCountDto[];
+}

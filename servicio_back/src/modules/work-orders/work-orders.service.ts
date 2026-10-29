@@ -15,6 +15,7 @@ import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { allowedTransitionsFor } from '../../domain/work-orders/work-order-state-machine';
 import { WORK_ORDER_STATUS_LABELS } from '../../domain/work-orders/work-order-status-labels';
 import { formatTrackingCode, generateTrackingCodeDistinctFrom } from '../../domain/work-orders/tracking-code';
+import { ACTIVE_STATUSES, OVERDUE_STATUSES, parseWorkOrderSearch } from '../../domain/work-orders/work-order-queries';
 import { PublicTrackingRequestDto } from './dto/public-tracking.dto';
 import { DevicesService } from '../devices/devices.service';
 import { UsersService } from '../users/users.service';
@@ -28,6 +29,7 @@ import {
   UnlockCodeResponseDto,
   WorkOrderAuditEntryDto,
   WorkOrderResponseDto,
+  WorkOrderSummaryDto,
 } from './dto/work-order.response.dto';
 import { CustomerStatusRow, WorkOrderDetailRow, WorkOrderRepository } from './repositories/work-order.repository';
 
@@ -99,8 +101,19 @@ export class WorkOrdersService {
   async list(query: QueryWorkOrdersDto, user: AuthenticatedUser): Promise<Paginated<WorkOrderResponseDto>> {
     // RN-06: technicians only ever see their own queue.
     const technicianId = user.role === UserRole.TECHNICIAN ? user.id : query.technicianId;
-    const { rows, total } = await this.repository.list({ status: query.status, technicianId }, query.page, query.pageSize);
+    const filter = { status: query.status, technicianId, search: parseWorkOrderSearch(query.search) };
+    const { rows, total } = await this.repository.list(filter, query.page, query.pageSize);
     return { data: rows.map((row) => toResponse(row, user)), total, page: query.page, pageSize: query.pageSize };
+  }
+
+  // Front desk dashboard counters. Every status is listed, zeros included,
+  // so the client never has to guess a missing one.
+  async summary(now: Date = new Date()): Promise<WorkOrderSummaryDto> {
+    const [groups, overdue] = await Promise.all([this.repository.countByStatus(), this.repository.countOverdue(OVERDUE_STATUSES, now)]);
+    const counts = new Map(groups.map((group) => [group.status, group.count]));
+    const byStatus = Object.values(WorkOrderStatus).map((status) => ({ status, count: counts.get(status) ?? 0 }));
+    const active = byStatus.filter((entry) => ACTIVE_STATUSES.includes(entry.status)).reduce((sum, entry) => sum + entry.count, 0);
+    return { active, overdue, byStatus };
   }
 
   async get(id: string, user: AuthenticatedUser): Promise<WorkOrderResponseDto> {
