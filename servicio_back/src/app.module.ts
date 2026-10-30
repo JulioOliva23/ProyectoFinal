@@ -16,6 +16,7 @@ import { DevicesModule } from './modules/devices/devices.module';
 import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
 import { WorkOrdersModule } from './modules/work-orders/work-orders.module';
 import { BudgetsModule } from './modules/budgets/budgets.module';
+import { AgentActionsModule } from './modules/agent-actions/agent-actions.module';
 
 @Module({
   imports: [
@@ -50,6 +51,8 @@ import { BudgetsModule } from './modules/budgets/budgets.module';
     SparePartsModule,
     WorkOrdersModule,
     BudgetsModule,
+    // AG-01: agent proposals with human approval (MCP server → people).
+    AgentActionsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

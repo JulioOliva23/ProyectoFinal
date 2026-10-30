@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "taller": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "mcp-server/dist/index.js"
+      ],
+      "env": {
+        "TALLER_API_URL": "${TALLER_API_URL:-http://localhost:3000/api/v1}",
+        "TALLER_AGENT_USERNAME": "${TALLER_AGENT_USERNAME:-agente-ia}",
+        "TALLER_AGENT_PASSWORD": "${TALLER_AGENT_PASSWORD}"
+      }
+    }
+  }
+}

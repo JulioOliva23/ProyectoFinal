@@ -158,6 +158,26 @@ La tabla de transiciones y los roles permitidos están en `src/domain/work-order
 
 Contrato: `WorkOrderTransitionHook { name; supports(ctx); handle(ctx, tx) }`, registrado en `WORK_ORDER_TRANSITION_HOOKS`. Orden de ejecución dentro de la transacción: *compare-and-set del estado* → `WorkflowPreconditionsHook` → `InventoryStockGuardHook` → `AuditTrailHook`. Un hook nuevo se agrega al factory de `work-order-transitions.module.ts`, antes de `AuditTrailHook`. Otros módulos que deben cambiar su agregado junto con el estado (p. ej. presupuestos) usan `WorkOrderTransitionService.transitionWithin(tx, …)`.
 
+### 7.1 Agente IA: MCP, skill, subagente y hooks de Claude Code
+
+El agente consulta y **propone** cambios de estado; una persona distinta los aprueba en el front (`/aprobaciones`). Arquitectura completa, diagrama y pruebas en [`mcp-server/README.md`](mcp-server/README.md).
+
+| ID | Regla |
+| --- | --- |
+| AG-01 | El agente nunca cambia una OT. Solo la aprobación ejecuta la transición (vía `WorkOrderTransitionService`), con la identidad y el rol de quien aprueba. La auditoría registra `[Agente IA · propuesta …]`. |
+| AG-02 | Una propuesta vence a los 15 minutos. |
+| AG-03 | El texto del modelo es entrada no confiable: se sanitiza (marcado, control, bidi, longitud) en el hook y en el backend. |
+| AG-04 | Cuatro ojos: quien propone no decide; el técnico solo decide sobre sus OTs; aprobar exige un rol aceptado por la máquina de estados. |
+
+| Pieza | Archivo |
+| --- | --- |
+| Servidor MCP `taller` (7 tools, 3 resources, 1 template) | `mcp-server/` · registrado en `.mcp.json` |
+| Skill | `.claude/skills/proponer-cambio-estado-ot/` (SKILL.md, `schema.json`, `scripts/validate-input.mjs`) |
+| Subagente de solo lectura | `.claude/agents/agent-ot-auditor.md` |
+| Hooks de ciclo de vida | `scripts/hooks/claude-mcp-hook.mjs` (`PreToolUse`/`PostToolUse` sobre `mcp__taller__.*`, `Stop`) |
+| API | `src/modules/agent-actions/` (propuestas, dry run, SSE) · política pura en `src/domain/agent-actions/` |
+| Usuario del agente | `agente-ia` (RECEPTIONIST, en el seed) |
+
 ## 8. Estado de la migración
 
 - ✅ Migración inicial `init_phone_repair` **aplicada** en PostgreSQL 17 (`tools/docker-compose.yml`, puerto **5433**, bases `servicio_tecnico` y `servicio_tecnico_test`): 14 tablas.
