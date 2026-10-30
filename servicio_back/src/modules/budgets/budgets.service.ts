@@ -116,7 +116,7 @@ export class BudgetsService {
       }
       await this.transitions.transitionWithin(transaction, {
         ...this.transitionRequest(budget.workOrderId, WorkOrderStatus.CANCELLED, user),
-        reason: `Budget rejected: ${dto.reason}`,
+        reason: `Presupuesto rechazado: ${dto.reason}`,
       });
       return this.repository.findById(id, transaction);
     });

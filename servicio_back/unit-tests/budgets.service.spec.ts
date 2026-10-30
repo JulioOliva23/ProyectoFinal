@@ -112,7 +112,7 @@ describe('BudgetsService', () => {
     await service.reject('b1', { channel: DecisionChannel.IN_PERSON, reason: 'Muy caro' }, user);
     expect(transitions.transitionWithin).toHaveBeenCalledWith(
       tx,
-      expect.objectContaining({ to: WorkOrderStatus.CANCELLED, reason: 'Budget rejected: Muy caro' }),
+      expect.objectContaining({ to: WorkOrderStatus.CANCELLED, reason: 'Presupuesto rechazado: Muy caro' }),
     );
   });
 
