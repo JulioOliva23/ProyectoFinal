@@ -5,7 +5,7 @@ describe('IMEI validation (RN-02)', () => {
     expect(isValidImei(imei)).toBe(true);
   });
 
-  it('rejects an IMEI whose check digit is wrong', () => {
+  it('rejects an IMEI whose check digit is wrong [003/RF-1.1]', () => {
     expect(isValidImei('490154203237519')).toBe(false);
   });
 
@@ -16,17 +16,17 @@ describe('IMEI validation (RN-02)', () => {
     },
   );
 
-  it('rejects all-zero-but-valid-length strings only when checksum fails', () => {
+  it('rejects all-zero-but-valid-length strings only when checksum fails [003/RF-1.3]', () => {
     expect(isValidImei('000000000000000')).toBe(true);
     expect(isValidImei('000000000000001')).toBe(false);
   });
 
-  it('normalizes dashes and spaces before validation', () => {
+  it('normalizes dashes and spaces before validation [003/RF-1.2]', () => {
     expect(isValidImei(normalizeImei('35-209900-176148-1'))).toBe(true);
     expect(isValidImei(normalizeImei('3520 9900 1761 481'))).toBe(true);
   });
 
-  it('computes the Luhn checksum digit-by-digit from the right', () => {
+  it('computes the Luhn checksum digit-by-digit from the right [003/RF-1.1]', () => {
     expect(luhnChecksum('79927398713')).toBe(0);
     expect(luhnChecksum('79927398710')).not.toBe(0);
   });

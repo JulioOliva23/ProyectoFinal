@@ -12,14 +12,14 @@ function IsStrongPassword() {
     ApiProperty({ minLength: 10, maxLength: 128, description: 'Al menos una minúscula, una mayúscula y un dígito' }),
     IsString(),
     Length(10, 128),
-    Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: 'password must contain lowercase, uppercase and a digit' }),
+    Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: 'La contraseña debe incluir una minúscula, una mayúscula y un número' }),
   );
 }
 
 export class CreateUserDto {
   @ApiProperty({ example: 'tecnico01' })
   @IsString()
-  @Matches(/^[a-z0-9._-]{3,80}$/, { message: 'username must be 3-80 lowercase letters, digits, dot, dash or underscore' })
+  @Matches(/^[a-z0-9._-]{3,80}$/, { message: 'El usuario debe tener de 3 a 80 caracteres: minúsculas, dígitos, punto, guion o guion bajo' })
   username!: string;
 
   @IsStrongPassword()

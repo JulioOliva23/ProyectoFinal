@@ -30,45 +30,45 @@ function action(overrides: Partial<AgentAction> = {}): AgentAction {
 }
 
 describe('sanitizeAgentText (AG-03)', () => {
-  it('strips markup, control and bidi characters and collapses whitespace', () => {
+  it('strips markup, control and bidi characters and collapses whitespace [011/RF-2.1]', () => {
     expect(sanitizeAgentText('  <script>x</script>Cambio\n\tde‮ estado\u0000 ')).toBe('x Cambio de estado');
   });
 
-  it('caps the length', () => {
+  it('caps the length [011/RF-2.2]', () => {
     expect(sanitizeAgentText('a'.repeat(1000))).toHaveLength(400);
   });
 });
 
 describe('checkDecision (AG-04)', () => {
-  it('allows a different staff member with an accepted role to approve', () => {
+  it('allows a different staff member with an accepted role to approve [011/RF-3.3]', () => {
     expect(checkDecision(action(), { id: 'tech-1', role: UserRole.TECHNICIAN }, 'approve', now)).toEqual({ allowed: true });
   });
 
-  it('rejects the account that proposed deciding its own proposal', () => {
+  it('rejects the account that proposed deciding its own proposal [011/RF-3.1]', () => {
     expect(checkDecision(action(), { id: 'agent-user', role: UserRole.ADMIN }, 'approve', now)).toEqual({
       allowed: false,
       reason: 'SELF_DECISION',
     });
   });
 
-  it('rejects an expired proposal (AG-02)', () => {
+  it('rejects an expired proposal (AG-02) [011/RF-5.1]', () => {
     const late = new Date(now.getTime() + 120_000);
     expect(checkDecision(action(), { id: 'admin-1', role: UserRole.ADMIN }, 'approve', late)).toEqual({ allowed: false, reason: 'EXPIRED' });
   });
 
-  it('rejects deciding twice (AG-01)', () => {
+  it('rejects deciding twice (AG-01) [011/RF-3.4]', () => {
     const decided = action({ status: AgentActionStatus.EXECUTED });
     expect(checkDecision(decided, { id: 'admin-1', role: UserRole.ADMIN }, 'reject', now)).toEqual({ allowed: false, reason: 'NOT_PENDING' });
   });
 
-  it('keeps a technician away from orders not assigned to them (RN-06)', () => {
+  it('keeps a technician away from orders not assigned to them (RN-06) [011/RF-3.2]', () => {
     expect(checkDecision(action(), { id: 'tech-2', role: UserRole.TECHNICIAN }, 'reject', now)).toEqual({
       allowed: false,
       reason: 'NOT_ASSIGNED',
     });
   });
 
-  it('lets a receptionist reject but not approve a repair start (RN-04)', () => {
+  it('lets a receptionist reject but not approve a repair start (RN-04) [011/RF-3.3]', () => {
     const receptionist = { id: 'rec-1', role: UserRole.RECEPTIONIST };
     expect(checkDecision(action(), receptionist, 'reject', now)).toEqual({ allowed: true });
     expect(checkDecision(action(), receptionist, 'approve', now)).toEqual({ allowed: false, reason: 'ROLE_NOT_ALLOWED' });
@@ -76,7 +76,7 @@ describe('checkDecision (AG-04)', () => {
 });
 
 describe('isVisibleTo', () => {
-  it('shows technicians only their assigned orders (RN-06) and front desk everything', () => {
+  it('shows technicians only their assigned orders (RN-06) and front desk everything [011/RF-6.1]', () => {
     expect(isVisibleTo(action(), { id: 'tech-2', role: UserRole.TECHNICIAN })).toBe(false);
     expect(isVisibleTo(action(), { id: 'rec-1', role: UserRole.RECEPTIONIST })).toBe(true);
     expect(isVisibleTo(action(), { id: 'c-1', role: UserRole.CUSTOMER })).toBe(false);
@@ -84,12 +84,12 @@ describe('isVisibleTo', () => {
 });
 
 describe('state machine exports for agents (RN-04)', () => {
-  it('lists the roles allowed for a transition and none for an illegal one', () => {
+  it('lists the roles allowed for a transition and none for an illegal one [011/RF-1.3]', () => {
     expect(rolesAllowedFor(S.READY_FOR_DELIVERY, S.DELIVERED)).toEqual([UserRole.RECEPTIONIST, UserRole.ADMIN]);
     expect(rolesAllowedFor(S.RECEIVED, S.DELIVERED)).toEqual([]);
   });
 
-  it('returns a copy of the table that cannot alter the real one', () => {
+  it('returns a copy of the table that cannot alter the real one [011/RF-7.1]', () => {
     const table = transitionTable();
     table[S.APPROVED][S.IN_REPAIR]?.push(UserRole.CUSTOMER);
     expect(rolesAllowedFor(S.APPROVED, S.IN_REPAIR)).not.toContain(UserRole.CUSTOMER);

@@ -15,13 +15,13 @@ export class UsersService {
   async create(dto: CreateUserDto): Promise<UserResponseDto> {
     // RN-14: only CUSTOMER accounts are bound to a customer record.
     if (dto.role !== UserRole.CUSTOMER && dto.customerId) {
-      throw new UnprocessableEntityException('RN-14: only CUSTOMER users can be bound to a customer');
+      throw new UnprocessableEntityException('RN-14: solo las cuentas de Cliente se vinculan a un cliente');
     }
     if (dto.customerId && !(await this.repository.customerExists(dto.customerId))) {
-      throw new NotFoundException('Customer not found');
+      throw new NotFoundException('El cliente no existe');
     }
     if (await this.repository.findByUsername(dto.username)) {
-      throw new ConflictException('Username already taken');
+      throw new ConflictException('Ese nombre de usuario ya está en uso');
     }
     const user = await this.repository.create({
       username: dto.username,
@@ -46,9 +46,9 @@ export class UsersService {
     const user = await this.requireUser(id);
     if (dto.role && dto.role !== user.role) {
       if (user.role === UserRole.CUSTOMER || dto.role === UserRole.CUSTOMER) {
-        throw new UnprocessableEntityException('RN-14: customer accounts cannot change role');
+        throw new UnprocessableEntityException('RN-14: las cuentas de cliente no pueden cambiar de rol');
       }
-      assertNotSelf(id, actor, 'change your own role');
+      assertNotSelf(id, actor, 'cambiar su propio rol');
     }
     return toResponse(await this.repository.update(id, { fullName: dto.fullName, role: dto.role }));
   }
@@ -62,8 +62,8 @@ export class UsersService {
 
   async deactivate(id: string, actor: AuthenticatedUser): Promise<UserResponseDto> {
     const user = await this.requireUser(id);
-    if (!user.isActive) throw new NotFoundException('User not found');
-    assertNotSelf(id, actor, 'deactivate your own account');
+    if (!user.isActive) throw new NotFoundException('El usuario no existe');
+    assertNotSelf(id, actor, 'desactivar su propia cuenta');
     return toResponse(await this.repository.update(id, { isActive: false }));
   }
 
@@ -76,20 +76,20 @@ export class UsersService {
   // RN-06: used by work orders to validate an assignment target.
   async assertActiveTechnician(id: string): Promise<void> {
     if (!(await this.repository.findActiveWithRole(id, UserRole.TECHNICIAN))) {
-      throw new UnprocessableEntityException('RN-06: assignee must be an active technician');
+      throw new UnprocessableEntityException('RN-06: la persona asignada debe ser un técnico activo');
     }
   }
 
   private async requireUser(id: string): Promise<UserRow> {
     const user = await this.repository.findById(id);
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException('El usuario no existe');
     return user;
   }
 }
 
 // An admin cannot lock themself out (and leave the shop without an admin).
 function assertNotSelf(id: string, actor: AuthenticatedUser, action: string): void {
-  if (id === actor.id) throw new UnprocessableEntityException(`You cannot ${action}`);
+  if (id === actor.id) throw new UnprocessableEntityException(`No puede ${action}`);
 }
 
 function toResponse(user: UserRow): UserResponseDto {

@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { isDocumentationPath } from './documentation-path';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -24,9 +25,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     // live under /api/v1; everything served by SwaggerModule under /api (but
     // NOT /api/v1) is documentation.
     const path = (context.switchToHttp().getRequest<Request>()).path ?? '';
-    if (path === '/api' || path === '/api/' || (path.startsWith('/api/') && !path.startsWith('/api/v1'))) {
-      return true;
-    }
+    if (isDocumentationPath(path)) return true;
 
     return super.canActivate(context);
   }

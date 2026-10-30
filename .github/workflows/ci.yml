@@ -71,6 +71,28 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  sdd:
+    name: SDD traceability (spec to test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Every requirement has a tagged test
+        run: |
+          set -o pipefail
+          node scripts/sdd/check-traceability.mjs servicio_back/unit-tests servicio_back/test | tee sdd.md
+
+      - name: Summary
+        if: always()
+        run: cat sdd.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
   e2e:
     name: E2E (PostgreSQL 17)
     runs-on: ubuntu-latest

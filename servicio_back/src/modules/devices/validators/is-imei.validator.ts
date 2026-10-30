@@ -9,7 +9,7 @@ export function IsImei(options?: ValidationOptions): PropertyDecorator {
       name: 'isImei',
       target: target.constructor,
       propertyName: propertyName.toString(),
-      options: { message: 'RN-02: imei must be 15 digits with a valid Luhn check digit', ...options },
+      options: { message: 'RN-02: el IMEI debe tener 15 dígitos y un dígito verificador válido', ...options },
       validator: {
         validate: (value: unknown) => typeof value === 'string' && isValidImei(value),
       },

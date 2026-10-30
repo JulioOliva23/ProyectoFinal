@@ -62,7 +62,7 @@ describe('BudgetsService', () => {
     );
   });
 
-  it('computes labor + catalog-priced parts with Decimal arithmetic (RN-15)', async () => {
+  it('computes labor + catalog-priced parts with Decimal arithmetic (RN-15) [006/RF-1.3] [006/RF-1.4]', async () => {
     const result = await service.create(
       'wo-1',
       {
@@ -78,19 +78,19 @@ describe('BudgetsService', () => {
     expect(result).toMatchObject({ laborSubtotal: '150.50', partsSubtotal: '980.00', total: '1130.50' });
   });
 
-  it('refuses to draft a budget once the repair was approved', async () => {
+  it('refuses to draft a budget once the repair was approved [006/RF-1.5]', async () => {
     repository.findWorkOrderContext.mockResolvedValue({ id: 'wo-1', status: WorkOrderStatus.APPROVED, device: { deviceModelId: 'm' } } as never);
     await expect(service.create('wo-1', { items: [] }, user)).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('sending the first budget moves the order to BUDGETED in the same transaction', async () => {
+  it('sending the first budget moves the order to BUDGETED in the same transaction [006/RF-4.2]', async () => {
     repository.findById.mockResolvedValue(budget({ status: 'DRAFT' }));
     await service.send('b1', user);
     expect(repository.changeStatus).toHaveBeenCalledWith(tx, 'b1', 'DRAFT', expect.objectContaining({ status: 'SENT' }));
     expect(transitions.transitionWithin).toHaveBeenCalledWith(tx, expect.objectContaining({ to: WorkOrderStatus.BUDGETED }));
   });
 
-  it('approval marks the budget and moves the order to APPROVED atomically (RN-05)', async () => {
+  it('approval marks the budget and moves the order to APPROVED atomically (RN-05) [006/RF-5.1]', async () => {
     await service.approve('b1', { channel: DecisionChannel.WHATSAPP }, user);
     expect(repository.changeStatus).toHaveBeenCalledWith(
       tx,
@@ -101,22 +101,22 @@ describe('BudgetsService', () => {
     expect(transitions.transitionWithin).toHaveBeenCalledWith(tx, expect.objectContaining({ to: WorkOrderStatus.APPROVED }));
   });
 
-  it('rejects approval of an expired budget and marks it EXPIRED (RN-08)', async () => {
+  it('rejects approval of an expired budget and marks it EXPIRED (RN-08) [006/RF-7.1]', async () => {
     repository.findById.mockResolvedValue(budget({ expiresAt: new Date(Date.now() - 1000) }));
     await expect(service.approve('b1', { channel: DecisionChannel.PHONE }, user)).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(repository.markExpired).toHaveBeenCalledWith('b1');
     expect(transitions.transitionWithin).not.toHaveBeenCalled();
   });
 
-  it('rejection cancels the work order with the reason', async () => {
+  it('rejection cancels the work order with the reason [006/RF-6.1]', async () => {
     await service.reject('b1', { channel: DecisionChannel.IN_PERSON, reason: 'Muy caro' }, user);
     expect(transitions.transitionWithin).toHaveBeenCalledWith(
       tx,
-      expect.objectContaining({ to: WorkOrderStatus.CANCELLED, reason: 'Budget rejected: Muy caro' }),
+      expect.objectContaining({ to: WorkOrderStatus.CANCELLED, reason: 'Presupuesto rechazado: Muy caro' }),
     );
   });
 
-  it('only SENT budgets can be decided', async () => {
+  it('only SENT budgets can be decided [006/RF-5.2] [006/RF-7.2]', async () => {
     repository.findById.mockResolvedValue(budget({ status: 'DRAFT' }));
     await expect(service.approve('b1', { channel: DecisionChannel.PHONE }, user)).rejects.toBeInstanceOf(ConflictException);
   });

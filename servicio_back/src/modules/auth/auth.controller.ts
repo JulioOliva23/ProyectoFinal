@@ -2,6 +2,8 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@n
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../common/enums/user-role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { AuthService } from './auth.service';
@@ -46,6 +48,7 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @Roles(...Object.values(UserRole))
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Cerrar sesión revocando el refresh token en el servidor (US-00, BE-E10)' })
@@ -57,6 +60,7 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @Roles(...Object.values(UserRole))
   @Get('profile')
   @ApiOperation({ summary: 'Obtener el perfil del usuario autenticado (US-00, BE-19)' })
   @ApiResponse({ status: 200, description: 'Perfil del usuario autenticado', type: UserProfileResponseDto })

@@ -72,7 +72,7 @@ describe('WorkOrdersService', () => {
     unlockCode: '4821',
   };
 
-  it('encrypts the unlock code before persisting it and never returns it (RN-03)', async () => {
+  it('encrypts the unlock code before persisting it and never returns it (RN-03) [003/RF-4.2]', async () => {
     const result = await service.create(intake, { id: 'recep-1', role: UserRole.RECEPTIONIST });
     const persisted = repository.create.mock.calls[0][1];
     expect(persisted.unlockCodeCipher).not.toContain('4821');
@@ -83,7 +83,7 @@ describe('WorkOrdersService', () => {
     expect(persisted.receptionistId).toBe('recep-1');
   });
 
-  it('returns the tracking code once and stores only its argon2 hash (SUP-05)', async () => {
+  it('returns the tracking code once and stores only its argon2 hash (SUP-05) [008/RF-1.2]', async () => {
     const result = await service.create(intake, { id: 'recep-1', role: UserRole.RECEPTIONIST });
     const persisted = repository.create.mock.calls[0][1];
     expect(result.trackingCode).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/);
@@ -103,7 +103,7 @@ describe('WorkOrdersService', () => {
       budgets: [{ total: new Prisma.Decimal('1130') }],
     };
 
-    it('returns only the customer status view for a valid code (RN-14)', async () => {
+    it('returns only the customer status view for a valid code (RN-14) [008/RF-2.1]', async () => {
       repository.findForPublicTracking.mockResolvedValue({ ...statusRow, trackingCodeHash: await argon2.hash('K7QM3XPA') });
       const result = await service.trackPublicly({ number: 123, trackingCode: 'K7QM3XPA' });
       expect(result).toEqual({
@@ -119,7 +119,7 @@ describe('WorkOrdersService', () => {
       expect(result).not.toHaveProperty('trackingCodeHash');
     });
 
-    it('answers the same 404 for a wrong code and for an unknown number', async () => {
+    it('answers the same 404 for a wrong code and for an unknown number [008/RF-3.1]', async () => {
       repository.findForPublicTracking.mockResolvedValue({ ...statusRow, trackingCodeHash: await argon2.hash('K7QM3XPA') });
       const wrong = await service.trackPublicly({ number: 123, trackingCode: 'ZZZZZZZZ' }).catch((error: unknown) => error);
       repository.findForPublicTracking.mockResolvedValue(null);
@@ -129,12 +129,12 @@ describe('WorkOrdersService', () => {
       expect((wrong as NotFoundException).message).toBe((unknown as NotFoundException).message);
     });
 
-    it('rejects orders created before SUP-05 (no hash)', async () => {
+    it('rejects orders created before SUP-05 (no hash) [008/RF-3.3]', async () => {
       repository.findForPublicTracking.mockResolvedValue({ ...statusRow, trackingCodeHash: null });
       await expect(service.trackPublicly({ number: 123, trackingCode: 'K7QM3XPA' })).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('regenerates the code, never matching the unlock code, and replaces the hash', async () => {
+    it('regenerates the code, never matching the unlock code, and replaces the hash [008/RF-6.1] [008/RF-6.2]', async () => {
       const result = await service.regenerateTrackingCode('wo-1');
       const [id, hash] = repository.setTrackingCodeHash.mock.calls[0];
       expect(id).toBe('wo-1');
@@ -143,23 +143,23 @@ describe('WorkOrdersService', () => {
     });
   });
 
-  it('rejects a promised date in the past', async () => {
+  it('rejects a promised date in the past [003/RF-3.4]', async () => {
     await expect(
       service.create({ ...intake, promisedAt: '2000-01-01T00:00:00Z' }, { id: 'recep-1', role: UserRole.RECEPTIONIST }),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
-  it('forces technicians to their own queue (RN-06)', async () => {
+  it('forces technicians to their own queue (RN-06) [005/RF-3.1] [004/RF-3.1]', async () => {
     await service.list({ page: 1, pageSize: 20, technicianId: 'someone-else' }, { id: 'tech-1', role: UserRole.TECHNICIAN });
     expect(repository.list).toHaveBeenCalledWith({ status: undefined, technicianId: 'tech-1', search: undefined }, 1, 20);
   });
 
-  it('keeps the technician scope when searching (RN-06)', async () => {
+  it('keeps the technician scope when searching (RN-06) [005/RF-3.1]', async () => {
     await service.list({ page: 1, pageSize: 20, search: 'OT-000007' }, { id: 'tech-1', role: UserRole.TECHNICIAN });
     expect(repository.list).toHaveBeenCalledWith({ status: undefined, technicianId: 'tech-1', search: { text: 'OT-000007', number: 7 } }, 1, 20);
   });
 
-  it('passes the front desk filters through', async () => {
+  it('passes the front desk filters through [005/RF-1.2] [005/RF-1.3]', async () => {
     await service.list(
       { page: 2, pageSize: 10, status: WorkOrderStatus.IN_REPAIR, technicianId: 'tech-9', search: 'Quispe' },
       { id: 'recep-1', role: UserRole.RECEPTIONIST },
@@ -179,20 +179,20 @@ describe('WorkOrdersService', () => {
       repository.countOverdue = jest.fn().mockResolvedValue(2);
     });
 
-    it('counts active orders without the terminal states', async () => {
+    it('counts active orders without the terminal states [005/RF-4.1]', async () => {
       const summary = await service.summary();
       expect(summary.active).toBe(6);
       expect(summary.overdue).toBe(2);
     });
 
-    it('lists every status, zeros included', async () => {
+    it('lists every status, zeros included [005/RF-4.3]', async () => {
       const { byStatus } = await service.summary();
       expect(byStatus.map((entry) => entry.status)).toEqual(Object.values(WorkOrderStatus));
       expect(byStatus.find((entry) => entry.status === WorkOrderStatus.IN_REPAIR)?.count).toBe(0);
       expect(byStatus.find((entry) => entry.status === WorkOrderStatus.BUDGETED)?.count).toBe(2);
     });
 
-    it('asks for overdue orders among the statuses the shop still works on', async () => {
+    it('asks for overdue orders among the statuses the shop still works on [005/RF-4.2]', async () => {
       const now = new Date('2026-10-29T12:00:00Z');
       await service.summary(now);
       const [statuses, at] = (repository.countOverdue as jest.Mock).mock.calls[0];
@@ -202,27 +202,27 @@ describe('WorkOrdersService', () => {
     });
   });
 
-  it('returns only the transitions the viewer may trigger (FE-08)', async () => {
+  it('returns only the transitions the viewer may trigger (FE-08) [004/RF-1.7]', async () => {
     repository.findDetail.mockResolvedValue(detail({ status: WorkOrderStatus.APPROVED }));
     expect((await service.get('wo-1', { id: 'tech-1', role: UserRole.TECHNICIAN })).allowedTransitions).toEqual([WorkOrderStatus.IN_REPAIR]);
     expect((await service.get('wo-1', { id: 'recep-1', role: UserRole.RECEPTIONIST })).allowedTransitions).toEqual([]);
   });
 
-  it('forbids a technician from reading another technician order (RN-06)', async () => {
+  it('forbids a technician from reading another technician order (RN-06) [004/RF-3.2]', async () => {
     await expect(service.get('wo-1', { id: 'tech-2', role: UserRole.TECHNICIAN })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('answers 404 to a customer probing a foreign order (RN-14)', async () => {
+  it('answers 404 to a customer probing a foreign order (RN-14) [008/RF-7.3]', async () => {
     await expect(service.get('wo-1', { id: 'c', role: UserRole.CUSTOMER, customerId: 'cust-2' })).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('reveals the code to the assigned technician through the audited path (RN-03)', async () => {
+  it('reveals the code to the assigned technician through the audited path (RN-03) [004/RF-9.1]', async () => {
     repository.revealUnlockCipher.mockResolvedValue({ lockType: 'PIN', unlockCodeCipher: cipher.encrypt('4821') });
     await expect(service.revealUnlockCode('wo-1', { id: 'tech-1', role: UserRole.TECHNICIAN })).resolves.toEqual({ lockType: 'PIN', unlockCode: '4821' });
     expect(repository.revealUnlockCipher).toHaveBeenCalledWith('wo-1', 'tech-1');
   });
 
-  it('does not reveal the code to receptionists', async () => {
+  it('does not reveal the code to receptionists [004/RF-9.2]', async () => {
     await expect(service.revealUnlockCode('wo-1', { id: 'r', role: UserRole.RECEPTIONIST })).rejects.toBeInstanceOf(ForbiddenException);
     expect(repository.revealUnlockCipher).not.toHaveBeenCalled();
   });

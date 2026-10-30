@@ -168,15 +168,15 @@ export class AgentActionsService {
 
   private async requireVisibleOrder(id: string, user: AuthenticatedUser): Promise<WorkOrderDetailRow> {
     const order = await this.workOrders.findDetail(id);
-    if (!order) throw new NotFoundException('Work order not found');
+    if (!order) throw new NotFoundException('La orden de trabajo no existe');
     if (user.role === UserRole.TECHNICIAN && order.technicianId !== user.id) {
-      throw new ForbiddenException('RN-06: work order is not assigned to this technician');
+      throw new ForbiddenException('RN-06: la orden no está asignada a este técnico');
     }
     return order;
   }
 
   private currentStatus(order: WorkOrderDetailRow): WorkOrderStatus {
-    if (!isWorkOrderStatus(order.status)) throw new UnprocessableEntityException(`Unknown persisted status ${order.status}`);
+    if (!isWorkOrderStatus(order.status)) throw new UnprocessableEntityException(`Estado desconocido en la base de datos: ${order.status}`);
     return order.status;
   }
 }

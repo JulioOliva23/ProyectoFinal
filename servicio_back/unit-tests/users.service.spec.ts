@@ -24,29 +24,29 @@ describe('UsersService', () => {
     service = new UsersService(repository);
   });
 
-  it('hashes the password with argon2 and never returns it (BE-28)', async () => {
+  it('hashes the password with argon2 and never returns it (BE-28) [002/RF-1.1]', async () => {
     const result = await service.create(base);
     const stored = repository.create.mock.calls[0][0];
     expect(stored.passwordHash).toMatch(/^\$argon2/);
     expect(result).not.toHaveProperty('password');
   });
 
-  it('rejects binding a staff user to a customer (RN-14)', async () => {
+  it('rejects binding a staff user to a customer (RN-14) [002/RF-1.6]', async () => {
     await expect(service.create({ ...base, customerId: 'c1' })).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
-  it('rejects a duplicated username', async () => {
+  it('rejects a duplicated username [002/RF-1.4]', async () => {
     repository.findByUsername.mockResolvedValue({ id: 'x' } as never);
     await expect(service.create(base)).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('only accepts active technicians as assignees (RN-06)', async () => {
+  it('only accepts active technicians as assignees (RN-06) [002/RF-6.1]', async () => {
     repository.findActiveWithRole.mockResolvedValue(null);
     await expect(service.assertActiveTechnician('u2')).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
   describe('list (US-21)', () => {
-    it('includes inactive users only for ADMIN', async () => {
+    it('includes inactive users only for ADMIN [002/RF-2.2]', async () => {
       await service.list({ includeInactive: true }, admin);
       expect(repository.list).toHaveBeenLastCalledWith({ role: undefined, includeInactive: true });
       await service.list({ role: UserRole.TECHNICIAN, includeInactive: true }, receptionist);
@@ -55,37 +55,37 @@ describe('UsersService', () => {
   });
 
   describe('update (US-21)', () => {
-    it('edits the name and the staff role', async () => {
+    it('edits the name and the staff role [002/RF-3.1]', async () => {
       const result = await service.update('u1', { fullName: 'Ana Rojas', role: UserRole.RECEPTIONIST }, admin);
       expect(repository.update).toHaveBeenCalledWith('u1', { fullName: 'Ana Rojas', role: UserRole.RECEPTIONIST });
       expect(result).toMatchObject({ fullName: 'Ana Rojas', role: UserRole.RECEPTIONIST });
     });
 
-    it('never turns staff into CUSTOMER nor a customer into staff (RN-14)', async () => {
+    it('never turns staff into CUSTOMER nor a customer into staff (RN-14) [002/RF-3.2]', async () => {
       await expect(service.update('u1', { role: UserRole.CUSTOMER }, admin)).rejects.toBeInstanceOf(UnprocessableEntityException);
       repository.findById.mockResolvedValueOnce({ ...stored, role: UserRole.CUSTOMER, customerId: 'c1' });
       await expect(service.update('u1', { role: UserRole.TECHNICIAN }, admin)).rejects.toBeInstanceOf(UnprocessableEntityException);
       expect(repository.update).not.toHaveBeenCalled();
     });
 
-    it('does not let an admin change their own role', async () => {
+    it('does not let an admin change their own role [002/RF-3.3]', async () => {
       repository.findById.mockResolvedValueOnce({ ...stored, id: 'admin-1', role: UserRole.ADMIN });
       await expect(service.update('admin-1', { role: UserRole.TECHNICIAN }, admin)).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
 
-    it('lets an admin rename themself', async () => {
+    it('lets an admin rename themself [002/RF-3.3]', async () => {
       repository.findById.mockResolvedValueOnce({ ...stored, id: 'admin-1', role: UserRole.ADMIN });
       await expect(service.update('admin-1', { fullName: 'Admin Nuevo', role: UserRole.ADMIN }, admin)).resolves.toMatchObject({ fullName: 'Admin Nuevo' });
     });
 
-    it('answers 404 for an unknown user', async () => {
+    it('answers 404 for an unknown user [002/RF-3.4]', async () => {
       repository.findById.mockResolvedValueOnce(null);
       await expect(service.update('nope', { fullName: 'Nadie Aquí' }, admin)).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
   describe('resetPassword (US-21)', () => {
-    it('stores only the new argon2 hash', async () => {
+    it('stores only the new argon2 hash [002/RF-4.1]', async () => {
       await service.resetPassword('u1', 'N3wPassword!');
       const [, data] = repository.update.mock.calls[0];
       expect(data.passwordHash).toMatch(/^\$argon2/);
@@ -94,21 +94,21 @@ describe('UsersService', () => {
   });
 
   describe('activation (US-21 / BE-18)', () => {
-    it('deactivates another user logically', async () => {
+    it('deactivates another user logically [002/RF-5.1]', async () => {
       await expect(service.deactivate('u1', admin)).resolves.toMatchObject({ isActive: false });
       expect(repository.update).toHaveBeenCalledWith('u1', { isActive: false });
     });
 
-    it('does not let an admin deactivate their own account', async () => {
+    it('does not let an admin deactivate their own account [002/RF-5.2]', async () => {
       await expect(service.deactivate('admin-1', admin)).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
 
-    it('answers 404 when the user is already inactive', async () => {
+    it('answers 404 when the user is already inactive [002/RF-5.3]', async () => {
       repository.findById.mockResolvedValueOnce({ ...stored, isActive: false });
       await expect(service.deactivate('u1', admin)).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('reactivates an inactive user and is idempotent for an active one', async () => {
+    it('reactivates an inactive user and is idempotent for an active one [002/RF-5.4]', async () => {
       repository.findById.mockResolvedValueOnce({ ...stored, isActive: false });
       await expect(service.activate('u1')).resolves.toMatchObject({ isActive: true });
       expect(repository.update).toHaveBeenCalledWith('u1', { isActive: true });

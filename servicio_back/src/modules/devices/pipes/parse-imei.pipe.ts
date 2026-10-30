@@ -7,7 +7,7 @@ export class ParseImeiPipe implements PipeTransform<string, string> {
   transform(value: string): string {
     const imei = normalizeImei(value ?? '');
     if (!isValidImei(imei)) {
-      throw new BadRequestException('RN-02: imei must be 15 digits with a valid Luhn check digit');
+      throw new BadRequestException('RN-02: el IMEI debe tener 15 dígitos y un dígito verificador válido');
     }
     return imei;
   }

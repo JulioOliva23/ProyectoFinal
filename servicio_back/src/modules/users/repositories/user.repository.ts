@@ -40,6 +40,14 @@ export class UserRepository {
     });
   }
 
+  // Ends every refresh token minted up to now: AuthService compares the token's
+  // iat (whole seconds) with updated_at, so no per-token list is needed (spec
+  // 001, RF-2.2). The mark is set one second ahead so that a token minted in
+  // this very second is also ended.
+  invalidateSessions(id: string) {
+    return this.prisma.user.update({ where: { id }, data: { updatedAt: new Date(Date.now() + 1000) }, select: { id: true } });
+  }
+
   // Every write bumps updated_at, which also ends the user's older refresh
   // tokens (AuthService.refresh).
   update(id: string, data: { fullName?: string; role?: string; passwordHash?: string; isActive?: boolean }) {

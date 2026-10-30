@@ -36,7 +36,7 @@ import { CustomerStatusRow, WorkOrderDetailRow, WorkOrderRepository } from './re
 // RN-06: a technician can be (re)assigned until the repair starts.
 // SUP-05: same message for "unknown number" and "wrong code" so a lookup
 // never reveals which work order numbers exist.
-const TRACKING_NOT_FOUND = 'Work order not found or tracking code is invalid';
+const TRACKING_NOT_FOUND = 'No se encontró la orden o el código de seguimiento no es válido';
 
 const ASSIGNABLE_STATUSES = [WorkOrderStatus.RECEIVED, WorkOrderStatus.IN_DIAGNOSIS, WorkOrderStatus.BUDGETED, WorkOrderStatus.APPROVED];
 
@@ -52,7 +52,7 @@ export class WorkOrdersService {
   // RN-01: intake. Device + customer + order are created atomically.
   async create(dto: CreateWorkOrderDto, user: AuthenticatedUser): Promise<CreatedWorkOrderResponseDto> {
     if (dto.promisedAt && new Date(dto.promisedAt).getTime() <= Date.now()) {
-      throw new UnprocessableEntityException('promisedAt must be in the future');
+      throw new UnprocessableEntityException('La fecha compromiso debe ser futura');
     }
     // SUP-05: random code, distinct from the unlock code (RN-03), hashed
     // outside the transaction because argon2 is deliberately slow.
@@ -121,7 +121,7 @@ export class WorkOrdersService {
   }
 
   async listForCustomer(user: AuthenticatedUser): Promise<CustomerWorkOrderStatusDto[]> {
-    if (!user.customerId) throw new ForbiddenException('RN-14: account is not bound to a customer');
+    if (!user.customerId) throw new ForbiddenException('RN-14: la cuenta no está vinculada a un cliente');
     return (await this.repository.findForCustomer(user.customerId)).map(toCustomerStatus);
   }
 
@@ -129,7 +129,7 @@ export class WorkOrdersService {
     await this.requireExisting(id);
     await this.users.assertActiveTechnician(dto.technicianId);
     if (!(await this.repository.assignTechnician(id, dto.technicianId, ASSIGNABLE_STATUSES))) {
-      throw new ConflictException('RN-06: technician can only be assigned before the repair starts');
+      throw new ConflictException('RN-06: el técnico solo puede asignarse antes de que empiece la reparación');
     }
     return toResponse(await this.requireExisting(id), user);
   }
@@ -137,7 +137,7 @@ export class WorkOrdersService {
   async updateDiagnosis(id: string, dto: UpdateDiagnosisDto, user: AuthenticatedUser): Promise<WorkOrderResponseDto> {
     const order = await this.requireVisible(id, user);
     if (order.status !== WorkOrderStatus.IN_DIAGNOSIS) {
-      throw new ConflictException('Diagnosis can only be recorded while the order is IN_DIAGNOSIS');
+      throw new ConflictException('El diagnóstico solo puede registrarse mientras la orden está En diagnóstico');
     }
     return toResponse(await this.repository.updateDiagnosis(id, dto.preliminaryDiagnosis), user);
   }
@@ -146,9 +146,9 @@ export class WorkOrdersService {
   async revealUnlockCode(id: string, user: AuthenticatedUser): Promise<UnlockCodeResponseDto> {
     const order = await this.requireVisible(id, user);
     if (user.role !== UserRole.ADMIN && order.technicianId !== user.id) {
-      throw new ForbiddenException('RN-03: only the assigned technician can reveal the unlock code');
+      throw new ForbiddenException('RN-03: solo el técnico asignado puede revelar el código de desbloqueo');
     }
-    if (!order.unlockCodeCipher) throw new NotFoundException('This device has no unlock code');
+    if (!order.unlockCodeCipher) throw new NotFoundException('Este equipo no tiene código de desbloqueo');
     const stored = await this.repository.revealUnlockCipher(id, user.id);
     return { lockType: stored.lockType as LockType, unlockCode: this.cipher.decrypt(stored.unlockCodeCipher as string) };
   }
@@ -168,7 +168,7 @@ export class WorkOrdersService {
 
   private async requireExisting(id: string): Promise<WorkOrderDetailRow> {
     const order = await this.repository.findDetail(id);
-    if (!order) throw new NotFoundException('Work order not found');
+    if (!order) throw new NotFoundException('La orden de trabajo no existe');
     return order;
   }
 
@@ -177,10 +177,10 @@ export class WorkOrdersService {
   private async requireVisible(id: string, user: AuthenticatedUser): Promise<WorkOrderDetailRow> {
     const order = await this.requireExisting(id);
     if (user.role === UserRole.TECHNICIAN && order.technicianId !== user.id) {
-      throw new ForbiddenException('RN-06: work order is not assigned to this technician');
+      throw new ForbiddenException('RN-06: la orden no está asignada a este técnico');
     }
     if (user.role === UserRole.CUSTOMER && order.customerId !== user.customerId) {
-      throw new NotFoundException('Work order not found');
+      throw new NotFoundException('La orden de trabajo no existe');
     }
     return order;
   }

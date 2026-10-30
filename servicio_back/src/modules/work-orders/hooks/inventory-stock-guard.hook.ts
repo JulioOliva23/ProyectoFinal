@@ -39,7 +39,7 @@ export class InventoryStockGuardHook implements WorkOrderTransitionHook {
     }
     if (missing.length > 0) {
       throw new UnprocessableEntityException({
-        message: 'RN-09: insufficient stock to start the repair',
+        message: 'RN-09: no hay stock suficiente para iniciar la reparación',
         code: 'INSUFFICIENT_STOCK',
         sparePartIds: missing,
       });
@@ -52,7 +52,7 @@ export class InventoryStockGuardHook implements WorkOrderTransitionHook {
       const consumed = await this.stock.consume(transaction, line, context.workOrderId, context.userId);
       if (!consumed) {
         throw new UnprocessableEntityException({
-          message: 'RN-09: reserved stock is inconsistent for this work order',
+          message: 'RN-09: el stock reservado de esta orden es inconsistente',
           code: 'RESERVATION_MISMATCH',
           sparePartIds: [line.sparePartId],
         });

@@ -10,6 +10,7 @@ import { Prisma } from '../../../generated/prisma/client';
 import { UserRole } from '../../../common/enums/user-role.enum';
 import { WorkOrderStatus } from '../../../common/enums/work-order-status.enum';
 import { checkTransition, isWorkOrderStatus } from '../../../domain/work-orders/work-order-state-machine';
+import { WORK_ORDER_STATUS_LABELS } from '../../../domain/work-orders/work-order-status-labels';
 import {
   WORK_ORDER_TRANSITION_HOOKS,
   WorkOrderTransitionContext,
@@ -47,28 +48,28 @@ export class WorkOrderTransitionService {
   // status change (e.g. a budget approval). Never call outside a transaction.
   async transitionWithin(transaction: Prisma.TransactionClient, request: TransitionRequest): Promise<TransitionResult> {
     const order = await this.repository.findForTransition(transaction, request.workOrderId);
-    if (!order) throw new NotFoundException('Work order not found');
+    if (!order) throw new NotFoundException('La orden de trabajo no existe');
     if (!isWorkOrderStatus(order.status)) {
-      throw new UnprocessableEntityException(`Unknown persisted status ${order.status}`);
+      throw new UnprocessableEntityException(`Estado guardado desconocido: ${order.status}`);
     }
 
     // RN-06: a technician only moves orders assigned to them.
     if (request.role === UserRole.TECHNICIAN && order.technicianId !== request.userId) {
-      throw new ForbiddenException('RN-06: work order is not assigned to this technician');
+      throw new ForbiddenException('RN-06: la orden no está asignada a este técnico');
     }
 
     const check = checkTransition(order.status, request.to, request.role);
     if (!check.allowed) {
       if (check.reason === 'ROLE_NOT_ALLOWED') {
-        throw new ForbiddenException(`RN-04: role ${request.role} cannot move ${order.status} → ${request.to}`);
+        throw new ForbiddenException(`RN-04: el rol ${request.role} no puede pasar la orden de ${WORK_ORDER_STATUS_LABELS[order.status]} a ${WORK_ORDER_STATUS_LABELS[request.to]}`);
       }
-      throw new ConflictException(`RN-04: illegal transition ${order.status} → ${request.to}`);
+      throw new ConflictException(`RN-04: transición no permitida: de ${WORK_ORDER_STATUS_LABELS[order.status]} a ${WORK_ORDER_STATUS_LABELS[request.to]}`);
     }
 
     // Compare-and-set first: it takes the row lock, so a concurrent
     // transition of the same order fails here before touching any stock.
     const applied = await this.repository.compareAndSetStatus(transaction, order.id, order.status, request.to);
-    if (!applied) throw new ConflictException('Work order status changed concurrently, retry');
+    if (!applied) throw new ConflictException('La orden cambió mientras tanto, vuelva a intentarlo');
 
     const context: WorkOrderTransitionContext = { ...request, from: order.status };
     // Hooks run in registration order (audit trail last). Any throw rolls

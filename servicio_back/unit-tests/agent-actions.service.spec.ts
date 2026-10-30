@@ -28,7 +28,7 @@ describe('AgentActionsService', () => {
 
   const proposal = { workOrderId, to: S.IN_REPAIR, reason: 'Presupuesto aprobado y repuestos disponibles' };
 
-  it('previews a transition without changing anything (dry run)', async () => {
+  it('previews a transition without changing anything (dry run) [011/RF-1.1]', async () => {
     const preview = await service.preview({ workOrderId, to: S.IN_REPAIR }, agent);
 
     expect(preview).toMatchObject({ from: S.APPROVED, legal: true, approverRoles: [UserRole.TECHNICIAN, UserRole.ADMIN] });
@@ -36,24 +36,24 @@ describe('AgentActionsService', () => {
     expect(transitions.transition).not.toHaveBeenCalled();
   });
 
-  it('files a proposal as pending without running the transition (AG-01)', async () => {
+  it('files a proposal as pending without running the transition (AG-01) [011/RF-1.2]', async () => {
     const action = await service.propose(proposal, agent);
 
     expect(action).toMatchObject({ status: AgentActionStatus.PENDING, from: S.APPROVED, to: S.IN_REPAIR, workOrderNumber: 42 });
     expect(transitions.transition).not.toHaveBeenCalled();
   });
 
-  it('refuses to propose an illegal transition (RN-04)', async () => {
+  it('refuses to propose an illegal transition (RN-04) [011/RF-1.3]', async () => {
     await expect(service.propose({ ...proposal, to: S.DELIVERED }, agent)).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('refuses a reason that is empty once sanitized (AG-03)', async () => {
+  it('refuses a reason that is empty once sanitized (AG-03) [011/RF-2.3]', async () => {
     await expect(service.propose({ ...proposal, reason: '<b></b>\u0000\u0000<i></i>' }, agent)).rejects.toBeInstanceOf(
       UnprocessableEntityException,
     );
   });
 
-  it('runs the transition as the approver and records the agent origin in the audit reason (RN-04, RN-12)', async () => {
+  it('runs the transition as the approver and records the agent origin in the audit reason (RN-04, RN-12) [011/RF-4.1]', async () => {
     const action = await service.propose(proposal, agent);
 
     const executed = await service.approve(action.id, technician, 'Revisado en mesa');
@@ -66,14 +66,14 @@ describe('AgentActionsService', () => {
     expect(transitions.transition.mock.calls[0][0].reason).toMatch(/^\[Agente IA · propuesta .{8}\] Presupuesto aprobado/);
   });
 
-  it('does not let the proposing account approve its own proposal (AG-04)', async () => {
+  it('does not let the proposing account approve its own proposal (AG-04) [011/RF-3.1]', async () => {
     const action = await service.propose(proposal, agent);
 
     expect(() => service.reject(action.id, agent)).toThrow(ForbiddenException);
     await expect(service.approve(action.id, agent)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('keeps the proposal pending with the error when the Stock Guard blocks it (RN-09)', async () => {
+  it('keeps the proposal pending with the error when the Stock Guard blocks it (RN-09) [011/RF-4.2]', async () => {
     transitions.transition.mockRejectedValueOnce(new UnprocessableEntityException('INSUFFICIENT_STOCK'));
     const action = await service.propose(proposal, agent);
 
@@ -82,7 +82,7 @@ describe('AgentActionsService', () => {
     expect(service.get(action.id, technician)).toMatchObject({ status: AgentActionStatus.PENDING, lastError: 'INSUFFICIENT_STOCK' });
   });
 
-  it('cannot run the same proposal twice at the same time (AG-01)', async () => {
+  it('cannot run the same proposal twice at the same time (AG-01) [011/RF-3.4]', async () => {
     let finish: () => void = () => undefined;
     transitions.transition.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -97,7 +97,7 @@ describe('AgentActionsService', () => {
     await expect(first).resolves.toMatchObject({ status: AgentActionStatus.EXECUTED });
   });
 
-  it('streams created and updated events only to users who can see the order (RN-06)', async () => {
+  it('streams created and updated events only to users who can see the order (RN-06) [011/RF-6.1]', async () => {
     const forTechnician = firstValueFrom(service.stream(technician).pipe(take(2), toArray()));
     let otherTechnicianEvents = 0;
     const subscription = service.stream({ id: 'tech-2', role: UserRole.TECHNICIAN }).subscribe(() => otherTechnicianEvents++);
@@ -114,7 +114,7 @@ describe('AgentActionsService', () => {
     expect(otherTechnicianEvents).toBe(0);
   });
 
-  it('marks a stale proposal as expired when it is read (AG-02)', async () => {
+  it('marks a stale proposal as expired when it is read (AG-02) [011/RF-5.1]', async () => {
     jest.useFakeTimers({ now: new Date('2026-10-30T12:00:00Z') });
     try {
       const action = await service.propose(proposal, agent);

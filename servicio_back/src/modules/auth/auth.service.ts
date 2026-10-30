@@ -55,13 +55,12 @@ export class AuthService {
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     try {
       const user = await this.repository.findByUsername(dto.username.trim());
-      if (!user || !user.isActive) {
+      // RNF-3: verify against a dummy hash when there is no account, so the
+      // response time does not reveal whether the username exists.
+      const hash = user?.passwordHash ?? (await dummyHash());
+      const passwordValid = await argon2.verify(hash, dto.password).catch(() => false);
+      if (!user || !user.isActive || !passwordValid) {
         // US-00: unified message hides whether the account exists or is inactive.
-        throw new UnauthorizedException(INVALID_CREDENTIALS);
-      }
-
-      const passwordValid = await argon2.verify(user.passwordHash, dto.password);
-      if (!passwordValid) {
         throw new UnauthorizedException(INVALID_CREDENTIALS);
       }
 
@@ -87,9 +86,11 @@ export class AuthService {
     }
 
     // BE-E10 / US-00: reuse of a revoked jti means the token family leaked.
-    // Revoke every refresh token of the user and reject before rotating.
+    // Every session of the user ends (bumping updated_at invalidates all the
+    // refresh tokens minted so far); the denylist rows stay, so the reused
+    // token and the already rotated ones can never come back to life.
     if (await this.revocation.findByJti(payload.jti)) {
-      await this.revocation.deleteManyByUser(user.id);
+      await this.repository.invalidateSessions(user.id);
       throw new UnauthorizedException('Refresh token reutilizado o revocado');
     }
 
@@ -169,4 +170,10 @@ export class AuthService {
       role: user.role as UserRole,
     };
   }
+}
+
+let dummyHashPromise: Promise<string> | undefined;
+function dummyHash(): Promise<string> {
+  dummyHashPromise ??= argon2.hash('rnf-3-timing-equalizer');
+  return dummyHashPromise;
 }

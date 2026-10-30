@@ -20,7 +20,7 @@ export class DevicesService {
 
   async getHistoryByImei(imei: string): Promise<DeviceHistoryResponseDto> {
     const device = await this.repository.findHistoryByImei(imei);
-    if (!device) throw new NotFoundException('Device not registered');
+    if (!device) throw new NotFoundException('El equipo no está registrado');
     return {
       id: device.id,
       imei: device.imei,
@@ -49,7 +49,7 @@ export class DevicesService {
   // (checkIn rejects it) but its devices, history and compatibilities stay.
   async updateModel(id: string, dto: UpdateDeviceModelDto): Promise<DeviceModelResponseDto> {
     const current = await this.repository.findModelById(id);
-    if (!current) throw new NotFoundException('Device model not found');
+    if (!current) throw new NotFoundException('El modelo de equipo no existe');
     const brand = dto.brand ?? current.brand;
     const model = dto.model ?? current.model;
     if (brand !== current.brand || model !== current.model) await this.assertModelNameFree(brand, model, id);
@@ -63,7 +63,7 @@ export class DevicesService {
 
   private async assertModelNameFree(brand: string, model: string, exceptId?: string): Promise<void> {
     const existing = await this.repository.findModelByName(brand, model);
-    if (existing && existing.id !== exceptId) throw new ConflictException('Device model already registered for this brand');
+    if (existing && existing.id !== exceptId) throw new ConflictException('Ese modelo ya está registrado para esa marca');
   }
 
   // RN-01 / RN-13: reuse the device registered under this IMEI (keeping its
@@ -75,12 +75,12 @@ export class DevicesService {
     customer: CustomerCheckInDto,
   ): Promise<CheckedInDevice> {
     if (!(await this.repository.findActiveModel(device.deviceModelId, transaction))) {
-      throw new UnprocessableEntityException('Device model not found or inactive');
+      throw new UnprocessableEntityException('El modelo de equipo no existe o está inactivo');
     }
     const owner = await this.repository.upsertCustomer(transaction, customer);
     const existing = await this.repository.findByImei(transaction, device.imei);
     if (existing && existing.deviceModelId !== device.deviceModelId) {
-      throw new ConflictException('RN-02: this IMEI is already registered for a different device model');
+      throw new ConflictException('RN-02: este IMEI ya está registrado con otro modelo de equipo');
     }
     const saved = existing
       ? await this.repository.updateOwnership(transaction, existing.id, { customerId: owner.id, color: device.color })

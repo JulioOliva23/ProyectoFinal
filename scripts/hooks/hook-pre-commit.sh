@@ -32,6 +32,16 @@ if printf '%s\n' "$STAGED" | grep -E '(^|/)\.env(\..+)?$' | grep -vE '\.env\.exa
   exit 1
 fi
 
+# SDD (constitution C2.3 / C4.1): every requirement of an implemented spec keeps
+# at least one tagged test. Runs only when a spec or a test is part of the change.
+if grep -qE '^(specs/|servicio_back/(unit-tests|test)/)' <<<"$STAGED"; then
+  step "SDD → spec to test traceability"
+  if ! node scripts/sdd/check-traceability.mjs servicio_back/unit-tests servicio_back/test; then
+    red "✖ Commit blocked: a requirement has no tagged test, or a test cites a missing requirement (C2.3)."
+    exit 1
+  fi
+fi
+
 # Packages that follow the <prefix>_back / <prefix>_front convention.
 PACKAGES=()
 for dir in */; do

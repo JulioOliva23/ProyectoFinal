@@ -23,13 +23,13 @@ describe('InventoryStockGuardHook (RN-09)', () => {
     hook = new InventoryStockGuardHook(stock as unknown as SparePartStockRepository);
   });
 
-  it('only intercepts IN_REPAIR and QUALITY_CONTROL', () => {
+  it('only intercepts IN_REPAIR and QUALITY_CONTROL [007/RF-5.1]', () => {
     expect(hook.supports(base)).toBe(true);
     expect(hook.supports({ ...base, to: WorkOrderStatus.QUALITY_CONTROL })).toBe(true);
     expect(hook.supports({ ...base, to: WorkOrderStatus.DELIVERED })).toBe(false);
   });
 
-  it('reserves every pending part line when entering IN_REPAIR', async () => {
+  it('reserves every pending part line when entering IN_REPAIR [007/RF-5.1] [004/RF-6.1]', async () => {
     stock.findApprovedPartLines.mockResolvedValue([
       { budgetItemId: 'i1', sparePartId: 'p1', quantity: 1 },
       { budgetItemId: 'i2', sparePartId: 'p2', quantity: 2 },
@@ -42,7 +42,7 @@ describe('InventoryStockGuardHook (RN-09)', () => {
     expect(stock.reserve).toHaveBeenCalledTimes(2);
   });
 
-  it('blocks the transition listing every part without stock', async () => {
+  it('blocks the transition listing every part without stock [007/RF-5.2] [004/RF-6.2]', async () => {
     stock.findApprovedPartLines.mockResolvedValue([
       { budgetItemId: 'i1', sparePartId: 'p1', quantity: 1 },
       { budgetItemId: 'i2', sparePartId: 'p2', quantity: 5 },
@@ -58,13 +58,13 @@ describe('InventoryStockGuardHook (RN-09)', () => {
     });
   });
 
-  it('is a no-op on QC rework when nothing is pending', async () => {
+  it('is a no-op on QC rework when nothing is pending [004/RF-6.4]', async () => {
     stock.findApprovedPartLines.mockResolvedValue([]);
     await expect(hook.handle({ ...base, from: WorkOrderStatus.QUALITY_CONTROL }, tx)).resolves.toBeUndefined();
     expect(stock.reserve).not.toHaveBeenCalled();
   });
 
-  it('consumes reserved lines when entering QUALITY_CONTROL', async () => {
+  it('consumes reserved lines when entering QUALITY_CONTROL [007/RF-5.3] [004/RF-6.3]', async () => {
     stock.findApprovedPartLines.mockResolvedValue([{ budgetItemId: 'i1', sparePartId: 'p1', quantity: 1 }]);
     stock.consume.mockResolvedValue(true);
 

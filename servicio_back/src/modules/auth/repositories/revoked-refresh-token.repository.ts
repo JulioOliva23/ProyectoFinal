@@ -15,10 +15,6 @@ export class RevokedRefreshTokenRepository {
     return this.prisma.revokedRefreshToken.create({ data });
   }
 
-  deleteManyByUser(userId: string) {
-    return this.prisma.revokedRefreshToken.deleteMany({ where: { userId } });
-  }
-
   deleteExpired(now: Date) {
     return this.prisma.revokedRefreshToken.deleteMany({ where: { expiresAt: { lt: now } } });
   }

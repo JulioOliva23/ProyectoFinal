@@ -28,45 +28,45 @@ describe('DevicesService', () => {
     service = new DevicesService(repository);
   });
 
-  it('registers a new device on first check-in', async () => {
+  it('registers a new device on first check-in [003/RF-2.1]', async () => {
     await expect(service.checkIn(tx, device, customer)).resolves.toEqual({ deviceId: 'dev-1', customerId: 'cust-1', deviceModelId: 'model-1' });
     expect(repository.create).toHaveBeenCalledWith(tx, { ...device, customerId: 'cust-1' });
   });
 
-  it('reuses the device (and its history) when the IMEI is known (RN-13)', async () => {
+  it('reuses the device (and its history) when the IMEI is known (RN-13) [003/RF-6.1]', async () => {
     repository.findByImei.mockResolvedValue({ id: 'dev-0', customerId: 'old', deviceModelId: 'model-1' });
     await expect(service.checkIn(tx, device, customer)).resolves.toMatchObject({ deviceId: 'dev-0' });
     expect(repository.create).not.toHaveBeenCalled();
   });
 
-  it('rejects a known IMEI declared with another model (RN-02)', async () => {
+  it('rejects a known IMEI declared with another model (RN-02) [003/RF-6.2]', async () => {
     repository.findByImei.mockResolvedValue({ id: 'dev-0', customerId: 'old', deviceModelId: 'model-9' });
     await expect(service.checkIn(tx, device, customer)).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('rejects an unknown or inactive device model', async () => {
+  it('rejects an unknown or inactive device model [003/RF-6.4]', async () => {
     repository.findActiveModel.mockResolvedValue(null);
     await expect(service.checkIn(tx, device, customer)).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
-  it('returns 404 for an unregistered IMEI lookup', async () => {
+  it('returns 404 for an unregistered IMEI lookup [003/RF-5.2]', async () => {
     repository.findHistoryByImei.mockResolvedValue(null);
     await expect(service.getHistoryByImei('352099001761481')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   describe('device model catalog (US-21)', () => {
-    it('creates a model when the brand + model pair is free', async () => {
+    it('creates a model when the brand + model pair is free [003/RF-7.1]', async () => {
       await expect(service.createModel('Samsung', 'Galaxy A54')).resolves.toMatchObject({ id: 'model-2', brand: 'Samsung' });
       expect(repository.findModelByName).toHaveBeenCalledWith('Samsung', 'Galaxy A54');
     });
 
-    it('rejects a duplicate regardless of letter case', async () => {
+    it('rejects a duplicate regardless of letter case [003/RF-7.1]', async () => {
       repository.findModelByName.mockResolvedValue({ id: 'model-1', brand: 'Apple', model: 'iPhone 13', isActive: true });
       await expect(service.createModel('apple', 'IPHONE 13')).rejects.toBeInstanceOf(ConflictException);
       expect(repository.createModel).not.toHaveBeenCalled();
     });
 
-    it('renames a model unless the new name belongs to another one', async () => {
+    it('renames a model unless the new name belongs to another one [003/RF-7.2]', async () => {
       await expect(service.updateModel('model-1', { model: 'iPhone 13 mini' })).resolves.toMatchObject({ model: 'iPhone 13 mini' });
       expect(repository.findModelByName).toHaveBeenCalledWith('Apple', 'iPhone 13 mini');
 
@@ -74,22 +74,22 @@ describe('DevicesService', () => {
       await expect(service.updateModel('model-1', { model: 'iPhone 14' })).rejects.toBeInstanceOf(ConflictException);
     });
 
-    it('accepts a case-only rename of the same model', async () => {
+    it('accepts a case-only rename of the same model [003/RF-7.2]', async () => {
       repository.findModelByName.mockResolvedValue({ id: 'model-1', brand: 'Apple', model: 'iPhone 13', isActive: true });
       await expect(service.updateModel('model-1', { model: 'IPHONE 13' })).resolves.toMatchObject({ model: 'IPHONE 13' });
     });
 
-    it('toggles activation without a name check', async () => {
+    it('toggles activation without a name check [003/RF-7.3]', async () => {
       await expect(service.updateModel('model-1', { isActive: false })).resolves.toMatchObject({ isActive: false });
       expect(repository.findModelByName).not.toHaveBeenCalled();
     });
 
-    it('answers 404 for an unknown model', async () => {
+    it('answers 404 for an unknown model [003/RF-7.4]', async () => {
       repository.findModelById.mockResolvedValue(null);
       await expect(service.updateModel('nope', { isActive: false })).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('lists inactive models only for ADMIN', async () => {
+    it('lists inactive models only for ADMIN [003/RF-7.5]', async () => {
       await service.listModels({ id: 'a', role: UserRole.ADMIN }, true);
       expect(repository.listModels).toHaveBeenLastCalledWith(true);
       await service.listModels({ id: 'r', role: UserRole.RECEPTIONIST }, true);

@@ -17,21 +17,21 @@ describe('Work order state machine (RN-04)', () => {
     expect(checkTransition(from, to, role)).toEqual({ allowed: true });
   });
 
-  it('rejects skipping the budget approval (RN-05)', () => {
+  it('rejects skipping the budget approval (RN-05) [004/RF-1.3]', () => {
     expect(checkTransition(S.BUDGETED, S.IN_REPAIR, UserRole.ADMIN)).toEqual({
       allowed: false,
       reason: 'ILLEGAL_TRANSITION',
     });
   });
 
-  it('rejects a technician approving a budget', () => {
+  it('rejects a technician approving a budget [004/RF-1.4]', () => {
     expect(checkTransition(S.BUDGETED, S.APPROVED, UserRole.TECHNICIAN)).toEqual({
       allowed: false,
       reason: 'ROLE_NOT_ALLOWED',
     });
   });
 
-  it('never lets a customer move a work order', () => {
+  it('never lets a customer move a work order [004/RF-1.6]', () => {
     for (const from of Object.values(S)) {
       for (const to of allowedNextStatuses(from)) {
         expect(checkTransition(from, to, UserRole.CUSTOMER).allowed).toBe(false);
@@ -39,18 +39,18 @@ describe('Work order state machine (RN-04)', () => {
     }
   });
 
-  it('allows QC rework back to IN_REPAIR', () => {
+  it('allows QC rework back to IN_REPAIR [004/RF-1.2]', () => {
     expect(checkTransition(S.QUALITY_CONTROL, S.IN_REPAIR, UserRole.TECHNICIAN).allowed).toBe(true);
   });
 
-  it('offers each role only the transitions it may trigger (FE-08)', () => {
+  it('offers each role only the transitions it may trigger (FE-08) [004/RF-1.7]', () => {
     expect(allowedTransitionsFor(S.BUDGETED, UserRole.TECHNICIAN)).toEqual([]);
     expect(allowedTransitionsFor(S.BUDGETED, UserRole.RECEPTIONIST).sort()).toEqual([S.APPROVED, S.CANCELLED]);
     expect(allowedTransitionsFor(S.APPROVED, UserRole.TECHNICIAN)).toEqual([S.IN_REPAIR]);
     expect(allowedTransitionsFor(S.IN_REPAIR, UserRole.CUSTOMER)).toEqual([]);
   });
 
-  it('treats DELIVERED as terminal', () => {
+  it('treats DELIVERED as terminal [004/RF-1.5]', () => {
     expect(allowedNextStatuses(S.DELIVERED)).toEqual([]);
   });
 });
