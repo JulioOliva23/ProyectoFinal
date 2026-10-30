@@ -12,12 +12,12 @@ import {
 import { PublicTrackingRequestDto } from '../src/modules/work-orders/dto/public-tracking.dto';
 
 describe('Tracking code (SUP-05)', () => {
-  it('generates 8 characters from an alphabet without look-alikes', () => {
+  it('generates 8 characters from an alphabet without look-alikes [008/RF-1.1]', () => {
     for (let i = 0; i < 200; i += 1) expect(generateTrackingCode()).toMatch(TRACKING_CODE_PATTERN);
     expect(TRACKING_CODE_ALPHABET).not.toMatch(/[01ILO]/);
   });
 
-  it('is never equal to the device unlock code (RN-03)', () => {
+  it('is never equal to the device unlock code (RN-03) [008/RF-1.4]', () => {
     // A rigged random source first produces the unlock code itself.
     const sequence = [...'ABCDEFGH', ...'ABCDEFGH', ...'ZZZZZZZZ'].map((char) => TRACKING_CODE_ALPHABET.indexOf(char));
     let call = 0;
@@ -25,7 +25,7 @@ describe('Tracking code (SUP-05)', () => {
     expect(generateTrackingCodeDistinctFrom('abcd-efgh', rigged)).toBe('ZZZZZZZZ');
   });
 
-  it('formats and normalizes the ticket representation', () => {
+  it('formats and normalizes the ticket representation [008/RF-2.2]', () => {
     expect(formatTrackingCode('K7QM3XPA')).toBe('K7QM-3XPA');
     expect(normalizeTrackingCode(' k7qm-3xpa ')).toBe('K7QM3XPA');
   });
@@ -39,7 +39,7 @@ describe('Tracking code (SUP-05)', () => {
     expect(parseWorkOrderNumber(raw)).toBe(expected);
   });
 
-  it('rejects non-numeric work order numbers', () => {
+  it('rejects non-numeric work order numbers [008/RF-2.2]', () => {
     expect(parseWorkOrderNumber('OT-12A')).toBeNaN();
   });
 });
@@ -47,18 +47,18 @@ describe('Tracking code (SUP-05)', () => {
 describe('PublicTrackingRequestDto (SUP-05)', () => {
   const errorsOf = (plain: object) => validate(plainToInstance(PublicTrackingRequestDto, plain), { forbidNonWhitelisted: true, whitelist: true });
 
-  it('accepts the formats printed on the ticket', async () => {
+  it('accepts the formats printed on the ticket [008/RF-2.2]', async () => {
     const dto = plainToInstance(PublicTrackingRequestDto, { number: 'OT-000123', trackingCode: 'k7qm-3xpa' });
     expect(await validate(dto)).toHaveLength(0);
     expect(dto).toMatchObject({ number: 123, trackingCode: 'K7QM3XPA' });
   });
 
-  it('rejects a 4-digit PIN-like code', async () => {
+  it('rejects a 4-digit PIN-like code [008/RF-2.3]', async () => {
     const errors = await errorsOf({ number: 1, trackingCode: '4821' });
     expect(errors.map((error) => error.property)).toContain('trackingCode');
   });
 
-  it('rejects malformed numbers and extra fields', async () => {
+  it('rejects malformed numbers and extra fields [008/RF-2.3]', async () => {
     const errors = await errorsOf({ number: 'OT-ABC', trackingCode: 'K7QM3XPA', imei: '352099001761481' });
     expect(errors.map((error) => error.property)).toEqual(expect.arrayContaining(['number', 'imei']));
   });

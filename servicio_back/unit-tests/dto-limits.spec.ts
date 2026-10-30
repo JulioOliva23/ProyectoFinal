@@ -2,7 +2,7 @@ import { BadRequestException, Type as NestType } from '@nestjs/common';
 import { createValidationPipe } from '../src/common/validation/validation-messages';
 import { CreateBudgetDto } from '../src/modules/budgets/dto/budget.dto';
 import { CustomerCheckInDto } from '../src/modules/devices/dto/device-check-in.dto';
-import { CreateSparePartDto } from '../src/modules/spare-parts/dto/spare-part.dto';
+import { CreateSparePartDto, QuerySparePartsDto, UpdateSparePartDto } from '../src/modules/spare-parts/dto/spare-part.dto';
 import { CreateUserDto } from '../src/modules/users/dto/create-user.dto';
 import { QueryWorkOrdersDto, TransitionWorkOrderDto } from '../src/modules/work-orders/dto/work-order-actions.dto';
 
@@ -51,7 +51,7 @@ describe('Customer data at intake [003/RF-3.6]', () => {
   });
 });
 
-describe('Transition reason [004/RF-10]', () => {
+describe('Transition reason [004/RF-10.1]', () => {
   it('accepts 3 to 500 characters and no reason at all', async () => {
     await accepted(TransitionWorkOrderDto, { to: 'CANCELLED', reason: 'abc' });
     await accepted(TransitionWorkOrderDto, { to: 'CANCELLED', reason: 'a'.repeat(500) });
@@ -74,7 +74,7 @@ describe('Order search [005/RF-2.5]', () => {
   it('rejects 101 characters', () => rejected(QueryWorkOrdersDto, { search: 'a'.repeat(101) }, 'search', 'query'));
 });
 
-describe('Budget lines [006/RF-1.1, RF-1.2]', () => {
+describe('Budget lines [006/RF-1.1] [006/RF-1.2]', () => {
   const labor = { itemType: 'LABOR', description: 'Micro-soldadura', quantity: 1, unitPrice: '150.00' };
   const part = { itemType: 'PART', description: 'Pantalla OLED', quantity: 1, sparePartId: '5b2e4f0a-1c3d-4e5f-8a9b-0c1d2e3f4a5b' };
 
@@ -99,7 +99,7 @@ describe('Spare part catalog [007/RF-1.1]', () => {
   const sparePart = { sku: 'OLED-IP13', name: 'Pantalla OLED', category: 'DISPLAY_OLED', unitCost: '650.00', workshopPrice: '980.00', minStock: 2 };
 
   it('accepts a complete part', () => accepted(CreateSparePartDto, sparePart));
-  it('rejects a lowercase, short or symbol-laden SKU', async () => {
+  it('rejects a lowercase, short or symbol-laden SKU [007/RF-1.1]', async () => {
     for (const sku of ['oled-ip13', 'AB', 'OLED IP13', 'A'.repeat(51)]) await invalid(CreateSparePartDto, { ...sparePart, sku });
   });
   it('limits the minimum stock to 0..10000 and the compatible models to 200', async () => {
@@ -108,8 +108,22 @@ describe('Spare part catalog [007/RF-1.1]', () => {
     const ids = Array.from({ length: 201 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`);
     await rejected(CreateSparePartDto, { ...sparePart, compatibleDeviceModelIds: ids }, 'compatibleDeviceModelIds');
   });
-  it('rejects an unknown category and money with more than two decimals', async () => {
+  it('rejects an unknown category and money with more than two decimals [007/RF-1.2]', async () => {
     await rejected(CreateSparePartDto, { ...sparePart, category: 'MAGIC' }, 'category');
     await rejected(CreateSparePartDto, { ...sparePart, unitCost: '1.234' }, 'unitCost');
+  });
+});
+
+describe('Spare part editing and filters [007/RF-1.3] [007/RF-2.1]', () => {
+  it('lets every field change except the SKU [007/RF-1.3]', async () => {
+    await accepted(UpdateSparePartDto, { name: 'Pantalla nueva', workshopPrice: '1000.00', minStock: 3 });
+    await rejected(UpdateSparePartDto, { sku: 'OTRO-SKU' }, 'sku');
+  });
+
+  it('accepts a category, a model and a text of up to 80 characters, and rejects the rest [007/RF-2.1]', async () => {
+    await accepted(QuerySparePartsDto, { category: 'BATTERY', deviceModelId: '5b2e4f0a-1c3d-4e5f-8a9b-0c1d2e3f4a5b', search: 'a'.repeat(80) }, 'query');
+    await rejected(QuerySparePartsDto, { search: 'a'.repeat(81) }, 'search', 'query');
+    await rejected(QuerySparePartsDto, { category: 'MAGIC' }, 'category', 'query');
+    await rejected(QuerySparePartsDto, { deviceModelId: 'no-uuid' }, 'deviceModelId', 'query');
   });
 });

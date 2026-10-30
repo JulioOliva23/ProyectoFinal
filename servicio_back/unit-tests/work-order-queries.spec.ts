@@ -2,7 +2,7 @@ import { WorkOrderStatus } from '../src/common/enums/work-order-status.enum';
 import { ACTIVE_STATUSES, OVERDUE_STATUSES, parseWorkOrderSearch } from '../src/domain/work-orders/work-order-queries';
 
 describe('parseWorkOrderSearch', () => {
-  it('ignores empty or blank input', () => {
+  it('ignores empty or blank input [005/RF-2.3]', () => {
     expect(parseWorkOrderSearch(undefined)).toBeUndefined();
     expect(parseWorkOrderSearch('   ')).toBeUndefined();
   });
@@ -15,12 +15,12 @@ describe('parseWorkOrderSearch', () => {
     expect(parseWorkOrderSearch(raw)).toEqual({ text: raw, number });
   });
 
-  it('keeps free text without a number (customer name, phone fragments)', () => {
+  it('keeps free text without a number (customer name, phone fragments) [005/RF-2.1]', () => {
     expect(parseWorkOrderSearch('  María Quispe ')).toEqual({ text: 'María Quispe' });
     expect(parseWorkOrderSearch('+591 7')).toEqual({ text: '+591 7' });
   });
 
-  it('does not read numbers beyond the INTEGER column as work order numbers', () => {
+  it('does not read numbers beyond the INTEGER column as work order numbers [005/RF-2.4]', () => {
     // A full IMEI is still searchable by text, but never as a number.
     expect(parseWorkOrderSearch('352099001761481')).toEqual({ text: '352099001761481' });
     expect(parseWorkOrderSearch('0')).toEqual({ text: '0' });
@@ -28,13 +28,13 @@ describe('parseWorkOrderSearch', () => {
 });
 
 describe('dashboard status groups', () => {
-  it('treats every non-terminal status as active', () => {
+  it('treats every non-terminal status as active [005/RF-4.1]', () => {
     expect(ACTIVE_STATUSES).not.toContain(WorkOrderStatus.DELIVERED);
     expect(ACTIVE_STATUSES).not.toContain(WorkOrderStatus.CANCELLED);
     expect(ACTIVE_STATUSES).toHaveLength(Object.values(WorkOrderStatus).length - 2);
   });
 
-  it('never counts an order ready for pickup as overdue', () => {
+  it('never counts an order ready for pickup as overdue [005/RF-4.2]', () => {
     expect(OVERDUE_STATUSES).not.toContain(WorkOrderStatus.READY_FOR_DELIVERY);
     expect(OVERDUE_STATUSES).toContain(WorkOrderStatus.IN_REPAIR);
   });

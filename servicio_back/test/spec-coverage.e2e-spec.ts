@@ -145,6 +145,20 @@ describe('Spec coverage over PostgreSQL (e2e)', () => {
       await expect(prisma.$executeRaw`DELETE FROM unlock_code_access_logs WHERE work_order_id = ${id}::uuid`).rejects.toThrow(/append-only/);
     });
 
+    it('keeps available = physical - reserved and never negative, even against a raw write [007/RF-4.1]', async () => {
+      const part = await http()
+        .post('/api/v1/spare-parts')
+        .set(as('admin'))
+        .send({ sku: `INVAR-${run.toUpperCase()}`, name: 'Pieza invariante', category: 'IC', unitCost: '5.00', workshopPrice: '9.00', minStock: 1 })
+        .expect(201);
+      await http().post(`/api/v1/spare-parts/${part.body.id}/stock-entries`).set(as('admin')).send({ quantity: 2 }).expect(201);
+
+      await expect(prisma.$executeRaw`UPDATE spare_parts SET available_stock = -1 WHERE id = ${part.body.id}::uuid`).rejects.toThrow(/spare_parts_stock_non_negative/);
+      await expect(prisma.$executeRaw`UPDATE spare_parts SET reserved_stock = 5 WHERE id = ${part.body.id}::uuid`).rejects.toThrow(/spare_parts_stock_non_negative/);
+      const row = await prisma.sparePart.findUniqueOrThrow({ where: { id: part.body.id } });
+      expect(row.availableStock).toBe(row.physicalStock - row.reservedStock);
+    });
+
     it('refuses UPDATE and DELETE on the stock ledger [007/RF-7.2]', async () => {
       const part = await http()
         .post('/api/v1/spare-parts')
@@ -155,6 +169,31 @@ describe('Spec coverage over PostgreSQL (e2e)', () => {
 
       await expect(prisma.$executeRaw`UPDATE stock_movements SET quantity = 99 WHERE spare_part_id = ${part.body.id}::uuid`).rejects.toThrow(/append-only/);
       await expect(prisma.$executeRaw`DELETE FROM stock_movements WHERE spare_part_id = ${part.body.id}::uuid`).rejects.toThrow(/append-only/);
+    });
+  });
+
+  describe('Accounts and listings', () => {
+    it('ends the previous sessions of an account when an admin resets its password [002/RF-4.2]', async () => {
+      const username = `reset-${run}`;
+      const oldPassword = 'Anterior2026Clave';
+      await http().post('/api/v1/users').set(as('admin')).send({ username, password: oldPassword, fullName: 'Cuenta Reinicio', role: 'RECEPTIONIST' }).expect(201);
+      const before = await http().post('/api/v1/auth/login').send({ username, password: oldPassword }).expect(200);
+      const created = await prisma.user.findUniqueOrThrow({ where: { username } });
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
+      await http().post(`/api/v1/users/${created.id}/password`).set(as('admin')).send({ password: 'Nueva2026Clave' }).expect(204);
+
+      await http().post('/api/v1/auth/refresh').send({ refreshToken: before.body.refreshToken }).expect(401);
+      await http().post('/api/v1/auth/login').send({ username, password: oldPassword }).expect(401);
+      await http().post('/api/v1/auth/login').send({ username, password: 'Nueva2026Clave' }).expect(200);
+    });
+
+    it('answers a page beyond the last one with an empty list and the real total [005/RF-1.1]', async () => {
+      const page = await http().get('/api/v1/work-orders?page=999&pageSize=20').set(as('recep')).expect(200);
+
+      expect(page.body.data).toEqual([]);
+      expect(page.body).toMatchObject({ page: 999, pageSize: 20 });
+      expect(page.body.total).toBeGreaterThan(0);
     });
   });
 
@@ -190,7 +229,7 @@ describe('Spec coverage over PostgreSQL (e2e)', () => {
       expect(audit.body.at(-1)).toMatchObject({ newStatus: 'CANCELLED', reason: 'Presupuesto rechazado: Muy caro' });
     });
 
-    it('marks the older version as superseded when a new one is sent [006/RF-3.1]', async () => {
+    it('marks the older version as superseded and numbers the new one [006/RF-3.1] [006/RF-3.2]', async () => {
       const { orderId, budgetId } = await budgetedOrder(8);
       const second = await http()
         .post(`/api/v1/work-orders/${orderId}/budgets`)
@@ -199,6 +238,7 @@ describe('Spec coverage over PostgreSQL (e2e)', () => {
         .expect(201);
       await http().post(`/api/v1/budgets/${second.body.id}/send`).set(as('recep')).expect(200);
 
+      expect(second.body.version).toBe(2);
       expect((await prisma.budget.findUniqueOrThrow({ where: { id: budgetId } })).status).toBe('SUPERSEDED');
       expect(await prisma.budget.count({ where: { workOrderId: orderId } })).toBe(2);
     });

@@ -22,6 +22,9 @@ import { CreateWorkOrderDto } from '../src/modules/work-orders/dto/create-work-o
 import { CosmeticCondition, LockType } from '../src/modules/work-orders/dto/work-order-enums';
 import { WorkOrderDetailRow, WorkOrderRepository } from '../src/modules/work-orders/repositories/work-order.repository';
 import { WorkOrderTransitionService } from '../src/modules/work-orders/services/work-order-transition.service';
+import { WORK_ORDER_STATUS_LABELS } from '../src/domain/work-orders/work-order-status-labels';
+import { parseWorkOrderSearch } from '../src/domain/work-orders/work-order-queries';
+import { SparePartRow } from '../src/modules/spare-parts/repositories/spare-part.repository';
 import { WorkOrdersService } from '../src/modules/work-orders/work-orders.service';
 
 // Service rules promised by the specs that had no test. Tags: [spec/requirement].
@@ -124,7 +127,7 @@ describe('Work order rules from the specs', () => {
     expect(repository.assignTechnician).not.toHaveBeenCalled();
   });
 
-  it('saves the diagnosis only while the order is IN_DIAGNOSIS [004/RF-5]', async () => {
+  it('saves the diagnosis only while the order is IN_DIAGNOSIS [004/RF-5.1] [004/RF-5.2]', async () => {
     const saved = await service.updateDiagnosis('wo-1', { preliminaryDiagnosis: 'Flex de carga oxidado' }, tech);
     expect(saved.preliminaryDiagnosis).toBe('Flex de carga oxidado');
 
@@ -277,5 +280,91 @@ describe('Spare part rules from the specs', () => {
 
     await expect(service.create(part as never)).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(repository.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('Domain rules from the specs', () => {
+  it('has nine states and every one has a Spanish label [004/RF-1.1]', () => {
+    const states = Object.values(WorkOrderStatus);
+    expect(states).toHaveLength(9);
+    for (const state of states) {
+      expect(WORK_ORDER_STATUS_LABELS[state].length).toBeGreaterThan(2);
+      expect(WORK_ORDER_STATUS_LABELS[state]).not.toBe(state);
+    }
+  });
+
+  it('reads "OT-000123" and "123" as order number 123 and keeps the text for the other fields [005/RF-2.2]', () => {
+    expect(parseWorkOrderSearch('OT-000123')).toEqual({ text: 'OT-000123', number: 123 });
+    expect(parseWorkOrderSearch(' 123 ')).toEqual({ text: '123', number: 123 });
+  });
+});
+
+describe('Budget expiry and spare part rules from the specs', () => {
+  const tx = {} as Prisma.TransactionClient;
+  const D2 = (value: string) => new Prisma.Decimal(value);
+  const row = (overrides: Partial<SparePartRow> = {}): SparePartRow => ({
+    id: 'p1',
+    sku: 'OLED-IP13',
+    name: 'Pantalla',
+    category: 'DISPLAY_OLED',
+    unitCost: D2('650'),
+    workshopPrice: D2('980'),
+    physicalStock: 4,
+    reservedStock: 1,
+    availableStock: 3,
+    minStock: 2,
+    compatibilities: [{ deviceModelId: 'm1' }],
+    ...overrides,
+  });
+  let spare: jest.Mocked<SparePartRepository>;
+  let parts: SparePartsService;
+
+  beforeEach(() => {
+    spare = {
+      findActive: jest.fn().mockResolvedValue(row({ reservedStock: 0, availableStock: 4 })),
+      deactivate: jest.fn().mockResolvedValue(row({ reservedStock: 0 })),
+      list: jest.fn().mockResolvedValue({ rows: [row()], total: 1 }),
+      runInTransaction: jest.fn((work) => work(tx)),
+      increase: jest.fn(),
+      decrease: jest.fn().mockResolvedValue(true),
+      recordMovement: jest.fn(),
+    } as unknown as jest.Mocked<SparePartRepository>;
+    parts = new SparePartsService(spare);
+  });
+
+  it('sets the sending date and an expiry seven days ahead when a budget is sent [006/RF-4.1]', async () => {
+    const budgets = {
+      findById: jest.fn().mockResolvedValue({ id: 'b2', workOrderId: 'wo-1', status: 'DRAFT', items: [], laborSubtotal: D2('1'), partsSubtotal: D2('0'), total: D2('1'), currency: 'BOB', version: 1, expiresAt: new Date(), sentAt: null, decidedAt: null, decisionChannel: null, rejectionReason: null }),
+      findWorkOrderContext: jest.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatus.BUDGETED, device: { deviceModelId: 'm1' } }),
+      runInTransaction: jest.fn((work) => work(tx)),
+      changeStatus: jest.fn().mockResolvedValue(true),
+      supersedeOthers: jest.fn(),
+    } as unknown as jest.Mocked<BudgetRepository>;
+    const service = new BudgetsService(budgets, {} as SparePartsService, { transitionWithin: jest.fn() } as unknown as WorkOrderTransitionService, { getBudgetValidityDays: () => 7 } as AppConfigService);
+
+    await service.send('b2', { id: 'recep-1', role: UserRole.RECEPTIONIST });
+
+    const data = budgets.changeStatus.mock.calls[0][3] as { status: string; sentAt: Date; expiresAt: Date };
+    expect(data.status).toBe('SENT');
+    expect(data.expiresAt.getTime() - data.sentAt.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it('deactivates a part without deleting it [007/RF-1.4]', async () => {
+    await parts.deactivate('p1');
+
+    expect(spare.deactivate).toHaveBeenCalledWith('p1');
+  });
+
+  it('adds units with a reason and a kardex row on a positive adjustment [007/RF-3.2]', async () => {
+    await parts.adjust('p1', { delta: 3, reason: 'Conteo físico' }, 'admin-1');
+
+    expect(spare.increase).toHaveBeenCalledWith(tx, 'p1', 3);
+    expect(spare.recordMovement).toHaveBeenCalledWith(tx, expect.objectContaining({ type: 'ADJUSTMENT', quantity: 3, reason: 'Conteo físico', userId: 'admin-1' }));
+  });
+
+  it('shows physical, reserved, available, minimum and the low-stock flag for every part [007/RF-2.4]', async () => {
+    const page = await parts.list({ page: 1, pageSize: 20 }, UserRole.ADMIN);
+
+    expect(page.data[0]).toMatchObject({ physicalStock: 4, reservedStock: 1, availableStock: 3, minStock: 2, lowStock: false });
   });
 });

@@ -37,7 +37,7 @@ describe('SparePartsService', () => {
     service = new SparePartsService(repository);
   });
 
-  it('shows unit cost to ADMIN only and hides prices from TECHNICIAN (RN-07)', async () => {
+  it('shows unit cost to ADMIN only and hides prices from TECHNICIAN (RN-07) [007/RF-2.2]', async () => {
     expect(await service.get('p1', UserRole.ADMIN)).toMatchObject({ unitCost: '650.00', workshopPrice: '980.00' });
     const receptionist = await service.get('p1', UserRole.RECEPTIONIST);
     expect(receptionist).not.toHaveProperty('unitCost');
@@ -47,37 +47,37 @@ describe('SparePartsService', () => {
     expect(technician).not.toHaveProperty('workshopPrice');
   });
 
-  it('flags low stock when available <= min stock (RN-11)', async () => {
+  it('flags low stock when available <= min stock (RN-11) [007/RF-6.1]', async () => {
     expect((await service.get('p1', UserRole.ADMIN)).lowStock).toBe(true);
   });
 
-  it('prices compatible parts from the catalog (RN-10)', async () => {
+  it('prices compatible parts from the catalog (RN-10) [006/RF-2.1]', async () => {
     const prices = await service.priceCompatibleParts(['p1', 'p1'], 'model-1');
     expect(prices.get('p1')?.workshopPrice.toFixed(2)).toBe('980.00');
   });
 
-  it('rejects a part that does not fit the device model (RN-10)', async () => {
+  it('rejects a part that does not fit the device model (RN-10) [006/RF-2.1]', async () => {
     await expect(service.priceCompatibleParts(['p1'], 'model-2')).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
-  it('rejects unknown or inactive parts', async () => {
+  it('rejects unknown or inactive parts [006/RF-2.2]', async () => {
     repository.findActiveMany.mockResolvedValue([]);
     await expect(service.priceCompatibleParts(['p1'], 'model-1')).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
-  it('blocks a write-off larger than the unreserved stock (RN-11)', async () => {
+  it('blocks a write-off larger than the unreserved stock (RN-11) [007/RF-3.3]', async () => {
     repository.decrease.mockResolvedValue(false);
     await expect(service.adjust('p1', { delta: -5, reason: 'conteo físico' }, 'u1')).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(repository.recordMovement).not.toHaveBeenCalled();
   });
 
-  it('records a kardex row for each stock entry (BE-17)', async () => {
+  it('records a kardex row for each stock entry (BE-17) [007/RF-3.1] [007/RF-7.1]', async () => {
     await service.registerEntry('p1', { quantity: 4 }, 'u1');
     expect(repository.increase).toHaveBeenCalledWith(expect.anything(), 'p1', 4);
     expect(repository.recordMovement).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: 'IN', quantity: 4 }));
   });
 
-  it('refuses to deactivate a part with reserved units', async () => {
+  it('refuses to deactivate a part with reserved units [007/RF-1.5]', async () => {
     await expect(service.deactivate('p1')).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 });

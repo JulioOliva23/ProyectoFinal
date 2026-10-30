@@ -133,15 +133,15 @@ describe('Phone repair flow (e2e)', () => {
   });
 
   describe('Auth & RBAC', () => {
-    it('rejects unauthenticated requests', async () => {
+    it('rejects unauthenticated requests [001/RF-7.2]', async () => {
       await http().get('/api/v1/work-orders').expect(401);
     });
 
-    it('forbids a technician from creating spare parts', async () => {
+    it('forbids a technician from creating spare parts [001/RF-7.3]', async () => {
       await http().post('/api/v1/spare-parts').set(as('tech')).send({}).expect(403);
     });
 
-    it('hides prices from technicians (RN-07)', async () => {
+    it('hides prices from technicians (RN-07) [007/RF-2.3]', async () => {
       const response = await http().get(`/api/v1/spare-parts/${scarcePartId}`).set(as('tech')).expect(200);
       expect(response.body).not.toHaveProperty('workshopPrice');
       expect(response.body).not.toHaveProperty('unitCost');
@@ -149,13 +149,13 @@ describe('Phone repair flow (e2e)', () => {
   });
 
   describe('Device check-in (RN-02)', () => {
-    it('rejects an IMEI that fails Luhn', async () => {
+    it('rejects an IMEI that fails Luhn [003/RF-1.3]', async () => {
       const bad = imei(900).slice(0, 14) + String((Number(imei(900)[14]) + 1) % 10);
       const response = await http().post('/api/v1/work-orders').set(as('recep')).send(intake(900, { device: { imei: bad, deviceModelId: modelId } })).expect(400);
       expect(JSON.stringify(response.body.message)).toContain('dígito verificador válido');
     });
 
-    it('accepts a formatted IMEI and stores it normalized', async () => {
+    it('accepts a formatted IMEI and stores it normalized [003/RF-1.2] [003/RF-5.1]', async () => {
       const raw = imei(901);
       const formatted = `${raw.slice(0, 2)}-${raw.slice(2, 8)}-${raw.slice(8, 14)}-${raw.slice(14)}`;
       await http().post('/api/v1/work-orders').set(as('recep')).send(intake(901, { device: { imei: formatted, deviceModelId: modelId } })).expect(201);
@@ -164,7 +164,7 @@ describe('Phone repair flow (e2e)', () => {
       expect(history.body.repairs).toHaveLength(1);
     });
 
-    it('never stores or returns the unlock code in plaintext (RN-03)', async () => {
+    it('never stores or returns the unlock code in plaintext (RN-03) [003/RF-4.3]', async () => {
       const created = await http().post('/api/v1/work-orders').set(as('recep')).send(intake(902)).expect(201);
       expect(JSON.stringify(created.body)).not.toContain('4821');
       const row = await prisma.workOrder.findUniqueOrThrow({ where: { id: created.body.id } });
@@ -176,12 +176,12 @@ describe('Phone repair flow (e2e)', () => {
     let winnerId: string;
     let loserId: string;
 
-    it('requires a technician assignment before diagnosis', async () => {
+    it('requires a technician assignment before diagnosis [004/RF-4.1]', async () => {
       const created = await http().post('/api/v1/work-orders').set(as('recep')).send(intake(903)).expect(201);
       await http().post(`/api/v1/work-orders/${created.body.id}/transitions`).set(as('admin')).send({ to: 'IN_DIAGNOSIS' }).expect(422);
     });
 
-    it('cannot be APPROVED without a customer-approved budget (RN-05)', async () => {
+    it('cannot be APPROVED without a customer-approved budget (RN-05) [004/RF-4.3]', async () => {
       const created = await http().post('/api/v1/work-orders').set(as('recep')).send(intake(904)).expect(201);
       const id = created.body.id as string;
       await http().post(`/api/v1/work-orders/${id}/assign-technician`).set(as('recep')).send({ technicianId: techId }).expect(200);
@@ -192,7 +192,7 @@ describe('Phone repair flow (e2e)', () => {
       await http().post(`/api/v1/work-orders/${id}/transitions`).set(as('recep')).send({ to: 'BUDGETED' }).expect(422);
     });
 
-    it('lets only one of two orders reserve the last unit (RN-09)', async () => {
+    it('lets only one of two orders reserve the last unit (RN-09) [007/RF-5.4] [004/RF-8.2]', async () => {
       const first = await approvedOrder(905);
       const second = await approvedOrder(906);
 
@@ -215,7 +215,7 @@ describe('Phone repair flow (e2e)', () => {
       expect(loserRow.status).toBe('APPROVED');
     });
 
-    it('consumes the reservation when entering quality control', async () => {
+    it('consumes the reservation when entering quality control [007/RF-5.3]', async () => {
       await http().post(`/api/v1/work-orders/${winnerId}/transitions`).set(as('tech')).send({ to: 'QUALITY_CONTROL' }).expect(200);
       const part = await prisma.sparePart.findUniqueOrThrow({ where: { id: scarcePartId } });
       expect(part).toMatchObject({ physicalStock: 0, reservedStock: 0, availableStock: 0 });
@@ -223,16 +223,16 @@ describe('Phone repair flow (e2e)', () => {
       expect(kinds.map((movement) => movement.type)).toEqual(['RESERVE', 'OUT']);
     });
 
-    it('shows the part as a low-stock alert (RN-11)', async () => {
+    it('shows the part as a low-stock alert (RN-11) [007/RF-6.1]', async () => {
       const alerts = await http().get('/api/v1/spare-parts/alerts/low-stock').set(as('recep')).expect(200);
       expect(alerts.body.map((part: { id: string }) => part.id)).toContain(scarcePartId);
     });
 
-    it('rejects a technician that is not assigned (RN-06)', async () => {
+    it('rejects a technician that is not assigned (RN-06) [004/RF-3.2]', async () => {
       await http().post(`/api/v1/work-orders/${winnerId}/transitions`).set(as('tech2')).send({ to: 'READY_FOR_DELIVERY' }).expect(403);
     });
 
-    it('delivers the device and writes one audit row per transition (RN-12)', async () => {
+    it('delivers the device and writes one audit row per transition (RN-12) [004/RF-7.4] [004/RF-2.1] [003/RF-2.1]', async () => {
       await http().post(`/api/v1/work-orders/${winnerId}/transitions`).set(as('tech')).send({ to: 'READY_FOR_DELIVERY' }).expect(200);
       await http().post(`/api/v1/work-orders/${winnerId}/transitions`).set(as('recep')).send({ to: 'DELIVERED' }).expect(200);
 
@@ -252,20 +252,20 @@ describe('Phone repair flow (e2e)', () => {
       expect(loserAudit.map((entry) => entry.newStatus)).not.toContain('IN_REPAIR');
     });
 
-    it('refuses UPDATE and DELETE on the audit table (DB trigger)', async () => {
+    it('refuses UPDATE and DELETE on the audit table (DB trigger) [004/RF-7.3]', async () => {
       await expect(prisma.$executeRaw`UPDATE work_order_status_audits SET reason = 'tampered' WHERE work_order_id = ${winnerId}::uuid`).rejects.toThrow(
         /append-only/,
       );
       await expect(prisma.$executeRaw`DELETE FROM work_order_status_audits WHERE work_order_id = ${winnerId}::uuid`).rejects.toThrow(/append-only/);
     });
 
-    it('treats DELIVERED as terminal', async () => {
+    it('treats DELIVERED as terminal [004/RF-1.5]', async () => {
       await http().post(`/api/v1/work-orders/${winnerId}/transitions`).set(as('admin')).send({ to: 'IN_REPAIR' }).expect(409);
     });
   });
 
   describe('Unlock code reveal (RN-03)', () => {
-    it('reveals to the assigned technician only and logs the access', async () => {
+    it('reveals to the assigned technician only and logs the access [004/RF-9.1]', async () => {
       const id = await approvedOrder(907);
       await http().post(`/api/v1/work-orders/${id}/unlock-code/reveal`).set(as('tech2')).expect(403);
       const revealed = await http().post(`/api/v1/work-orders/${id}/unlock-code/reveal`).set(as('tech')).expect(200);
@@ -275,7 +275,7 @@ describe('Phone repair flow (e2e)', () => {
   });
 
   describe('Budget expiration (RN-08)', () => {
-    it('rejects approval of an expired budget', async () => {
+    it('rejects approval of an expired budget [006/RF-7.1]', async () => {
       const created = await http().post('/api/v1/work-orders').set(as('recep')).send(intake(908)).expect(201);
       const id = created.body.id as string;
       await http().post(`/api/v1/work-orders/${id}/assign-technician`).set(as('recep')).send({ technicianId: techId }).expect(200);
@@ -293,7 +293,7 @@ describe('Phone repair flow (e2e)', () => {
       expect((await prisma.workOrder.findUniqueOrThrow({ where: { id } })).status).toBe('BUDGETED');
     });
 
-    it('does not let technicians read budgets (RN-07)', async () => {
+    it('does not let technicians read budgets (RN-07) [006/RF-8.1]', async () => {
       await http().get(`/api/v1/work-orders/${randomUUID()}/budgets`).set(as('tech')).expect(403);
     });
   });
@@ -314,7 +314,7 @@ describe('Phone repair flow (e2e)', () => {
       expect(trackingCode.replace('-', '')).not.toBe('4821');
     });
 
-    it('never stores the code in plaintext nor returns it again', async () => {
+    it('never stores the code in plaintext nor returns it again [008/RF-1.3]', async () => {
       const row = await prisma.workOrder.findUniqueOrThrow({ where: { id: workOrderId } });
       expect(row.trackingCodeHash).toMatch(/^\$argon2/);
       const detail = await http().get(`/api/v1/work-orders/${workOrderId}`).set(as('recep')).expect(200);
@@ -322,20 +322,20 @@ describe('Phone repair flow (e2e)', () => {
       expect(detail.body).not.toHaveProperty('trackingCodeHash');
     });
 
-    it('returns only the customer status view, without a session (1/5)', async () => {
+    it('returns only the customer status view, without a session (1/5) [008/RF-2.1]', async () => {
       const ticketNumber = `OT-${String(number).padStart(6, '0')}`;
       const response = await track({ number: ticketNumber, trackingCode: trackingCode.toLowerCase() }).expect(200);
       expect(Object.keys(response.body).sort()).toEqual(['budgetTotal', 'device', 'id', 'number', 'promisedAt', 'status', 'statusLabel', 'updatedAt']);
       expect(response.body).toMatchObject({ number, status: 'RECEIVED', statusLabel: 'Ingresado' });
     });
 
-    it('gives the same 404 for a wrong code and an unknown number (2/5, 3/5)', async () => {
+    it('gives the same 404 for a wrong code and an unknown number (2/5, 3/5) [008/RF-3.1]', async () => {
       const wrong = await track({ number, trackingCode: 'ZZZZ-ZZZZ' }).expect(404);
       const unknown = await track({ number: 2_000_000_000, trackingCode }).expect(404);
       expect(wrong.body.message).toBe(unknown.body.message);
     });
 
-    it('invalidates the previous code when a new one is issued (4/5, 5/5)', async () => {
+    it('invalidates the previous code when a new one is issued (4/5, 5/5) [008/RF-6.1]', async () => {
       await http().post(`/api/v1/work-orders/${workOrderId}/tracking-code/regenerate`).set(as('tech')).expect(403);
       const regenerated = await http().post(`/api/v1/work-orders/${workOrderId}/tracking-code/regenerate`).set(as('recep')).expect(200);
       await track({ number, trackingCode }).expect(404);
@@ -343,13 +343,13 @@ describe('Phone repair flow (e2e)', () => {
       trackingCode = regenerated.body.trackingCode;
     });
 
-    it('throttles the 6th attempt within a minute', async () => {
+    it('throttles the 6th attempt within a minute [008/RF-4.1]', async () => {
       await track({ number, trackingCode }).expect(429);
     });
   });
 
   describe('Customer view (RN-14)', () => {
-    it('lists only status information for the customer', async () => {
+    it('lists only status information for the customer [008/RF-5.1] [008/RF-7.1]', async () => {
       const response = await http().get('/api/v1/work-orders/mine').set(as('customer')).expect(200);
       expect(response.body.length).toBeGreaterThan(0);
       for (const order of response.body) {
@@ -358,7 +358,7 @@ describe('Phone repair flow (e2e)', () => {
       expect(response.body.map((order: { statusLabel: string }) => order.statusLabel)).toContain('Entregado');
     });
 
-    it('blocks staff endpoints for customers', async () => {
+    it('blocks staff endpoints for customers [008/RF-7.4]', async () => {
       await http().get('/api/v1/work-orders').set(as('customer')).expect(403);
       await http().get('/api/v1/spare-parts').set(as('customer')).expect(403);
     });

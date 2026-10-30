@@ -65,7 +65,7 @@ describe('AuthService (US-00)', () => {
     service = module.get(AuthService);
   });
 
-  it('returns an access + refresh token pair for valid credentials (US-00)', async () => {
+  it('returns an access + refresh token pair for valid credentials (US-00) [001/RF-1.1]', async () => {
     repository.findByUsername.mockResolvedValue(user);
 
     const result = await service.login({ username: 'recep01', password: 'Servicio2026!' });
@@ -77,7 +77,7 @@ describe('AuthService (US-00)', () => {
     expect(result).not.toHaveProperty('passwordHash');
   });
 
-  it('returns 401 for an unknown or inactive user without leaking which case (US-00)', async () => {
+  it('returns 401 for an unknown or inactive user without leaking which case (US-00) [001/RF-1.2]', async () => {
     repository.findByUsername.mockResolvedValue(null);
 
     await expect(service.login({ username: 'nobody', password: 'x' })).rejects.toThrow(UnauthorizedException);
@@ -86,14 +86,14 @@ describe('AuthService (US-00)', () => {
     await expect(service.login({ username: 'recep01', password: 'x' })).rejects.toThrow(UnauthorizedException);
   });
 
-  it('returns 401 when the password is incorrect (US-00)', async () => {
+  it('returns 401 when the password is incorrect (US-00) [001/RF-1.2]', async () => {
     repository.findByUsername.mockResolvedValue(user);
     (argon2.verify as jest.Mock).mockResolvedValue(false);
 
     await expect(service.login({ username: 'recep01', password: 'wrong' })).rejects.toThrow(UnauthorizedException);
   });
 
-  it('issues a new token pair from a valid refresh token (US-00)', async () => {
+  it('issues a new token pair from a valid refresh token (US-00) [001/RF-2.1]', async () => {
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-valid', exp: 1_000_000 });
     repository.findActiveById.mockResolvedValue(user);
 
@@ -104,7 +104,7 @@ describe('AuthService (US-00)', () => {
     expect(result.accessToken).toBe('signed-token');
   });
 
-  it('rejects a refresh token minted before the last admin change to the account (US-21)', async () => {
+  it('rejects a refresh token minted before the last admin change to the account (US-21) [001/RF-4.1]', async () => {
     const changedAt = new Date('2026-10-29T12:00:00.500Z');
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-old', iat: changedAt.getTime() / 1000 - 60, exp: 2_000_000_000 });
     repository.findActiveById.mockResolvedValue({ ...user, updatedAt: changedAt });
@@ -113,7 +113,7 @@ describe('AuthService (US-00)', () => {
     expect(revocation.create).not.toHaveBeenCalled();
   });
 
-  it('accepts a refresh token minted after the change, even within the same second (US-21)', async () => {
+  it('accepts a refresh token minted after the change, even within the same second (US-21) [001/RF-4.2]', async () => {
     const changedAt = new Date('2026-10-29T12:00:00.500Z');
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-new', iat: Math.floor(changedAt.getTime() / 1000), exp: 2_000_000_000 });
     repository.findActiveById.mockResolvedValue({ ...user, updatedAt: changedAt });
@@ -121,7 +121,7 @@ describe('AuthService (US-00)', () => {
     await expect(service.refresh({ refreshToken: 'new-refresh' })).resolves.toMatchObject({ id: user.id });
   });
 
-  it('rotates the used refresh token: revokes the old jti and mints a new pair (BE-E10)', async () => {
+  it('rotates the used refresh token: revokes the old jti and mints a new pair (BE-E10) [001/RF-2.1]', async () => {
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-used', exp: 1_000_000 });
     repository.findActiveById.mockResolvedValue(user);
 
@@ -164,19 +164,19 @@ describe('AuthService (US-00)', () => {
     expect(argon2.verify).toHaveBeenCalledTimes(1);
   });
 
-  it('returns 401 when a refresh token has no jti (legacy token, BE-E10)', async () => {
+  it('returns 401 when a refresh token has no jti (legacy token, BE-E10) [001/RF-2.3]', async () => {
     jwt.verifyAsync.mockResolvedValue({ sub: user.id });
 
     await expect(service.refresh({ refreshToken: 'legacy-refresh' })).rejects.toThrow(UnauthorizedException);
   });
 
-  it('returns 401 for an invalid refresh token (US-00)', async () => {
+  it('returns 401 for an invalid refresh token (US-00) [001/RF-2.3]', async () => {
     jwt.verifyAsync.mockRejectedValue(new Error('invalid'));
 
     await expect(service.refresh({ refreshToken: 'bad' })).rejects.toThrow(UnauthorizedException);
   });
 
-  it('logout revokes the refresh token in the denylist (BE-E10)', async () => {
+  it('logout revokes the refresh token in the denylist (BE-E10) [001/RF-3.1]', async () => {
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-logout', exp: 1_000_000 });
 
     await expect(service.logout({ refreshToken: 'to-revoke' })).resolves.toBeUndefined();
@@ -188,7 +188,7 @@ describe('AuthService (US-00)', () => {
     });
   });
 
-  it('logout is idempotent when the refresh token is already revoked (BE-E10)', async () => {
+  it('logout is idempotent when the refresh token is already revoked (BE-E10) [001/RF-3.2]', async () => {
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-already' });
     revocation.findByJti.mockResolvedValue({ jti: 'jti-already' });
 
@@ -197,13 +197,13 @@ describe('AuthService (US-00)', () => {
     expect(revocation.create).not.toHaveBeenCalled();
   });
 
-  it('logout returns 401 for an invalid refresh token (BE-E10)', async () => {
+  it('logout returns 401 for an invalid refresh token (BE-E10) [001/RF-3.3]', async () => {
     jwt.verifyAsync.mockRejectedValue(new Error('invalid'));
 
     await expect(service.logout({ refreshToken: 'bad' })).rejects.toThrow(UnauthorizedException);
   });
 
-  it('returns the profile of an active user without the hash (US-00)', async () => {
+  it('returns the profile of an active user without the hash (US-00) [001/RF-5.1]', async () => {
     repository.findActiveById.mockResolvedValue(user);
 
     const result = await service.getProfile(user.id);

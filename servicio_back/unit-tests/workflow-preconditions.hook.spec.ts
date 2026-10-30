@@ -16,22 +16,22 @@ describe('WorkflowPreconditionsHook', () => {
     hook = new WorkflowPreconditionsHook(repository as unknown as WorkOrderRepository);
   });
 
-  it('requires an assigned technician to start the diagnosis (RN-06)', async () => {
+  it('requires an assigned technician to start the diagnosis (RN-06) [004/RF-4.1]', async () => {
     repository.hasTechnician.mockResolvedValue(false);
     await expect(hook.handle(ctx(S.RECEIVED, S.IN_DIAGNOSIS), tx)).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
-  it('requires a SENT budget to become BUDGETED', async () => {
+  it('requires a SENT budget to become BUDGETED [004/RF-4.2]', async () => {
     await hook.handle(ctx(S.IN_DIAGNOSIS, S.BUDGETED), tx);
     expect(repository.hasBudgetInStatus).toHaveBeenCalledWith(tx, 'wo-1', 'SENT');
   });
 
-  it('blocks APPROVED without an approved budget (RN-05)', async () => {
+  it('blocks APPROVED without an approved budget (RN-05) [004/RF-4.3]', async () => {
     repository.hasBudgetInStatus.mockResolvedValue(false);
     await expect(hook.handle(ctx(S.BUDGETED, S.APPROVED), tx)).rejects.toThrow('RN-05');
   });
 
-  it('ignores unrelated transitions', () => {
+  it('ignores unrelated transitions [004/RF-4.3]', () => {
     expect(hook.supports(ctx(S.IN_REPAIR, S.QUALITY_CONTROL))).toBe(false);
   });
 });
