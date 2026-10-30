@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console -- a command line tool: printing the report is its job */
 // SDD traceability check (constitution C2.3 / C4.1).
 //
 //   node scripts/sdd/check-traceability.mjs [--detail] <test dir> [<test dir> ...]
@@ -27,7 +28,8 @@ if (testDirs.length === 0) {
 
 const TEST_FILE = /\.(spec|test|e2e-spec)\.(ts|tsx)$/;
 const TAG = /\[(\d{3})\/(RF-\d+(?:\.\d+)?)\]/g;
-const TITLE = /\b(?:it|test)\((['"`])(.*?)\1\s*,/;
+const TITLE = /(?:\b(?:it|test)\(|\]\)\()(['"`])(.*?)\1\s*,/;
+const TEST_CALL = /\b(it|test|describe)(\.each\([^)]*\))?\(|^\s*\]\)\(['"`]/;
 const byRequirement = (a, b) => Number(a.slice(3)) - Number(b.slice(3));
 const relative = (file) => file.replace(root, '').replaceAll('\\', '/').replace(/^\//, '');
 
@@ -58,7 +60,7 @@ for (const file of testDirs.flatMap(walk)) {
   readFileSync(file, 'utf8')
     .split(/\r?\n/)
     .forEach((line, index) => {
-      if (!/\b(it|test|describe)(\.each\([^)]*\))?\(/.test(line)) return;
+      if (!TEST_CALL.test(line)) return;
       for (const [, number, id] of line.matchAll(TAG)) {
         const spec = specs.get(number);
         const where = `${relative(file)}:${index + 1}`;
