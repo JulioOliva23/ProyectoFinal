@@ -41,6 +41,9 @@ async function main(): Promise<void> {
   const users = [
     { username: 'admin01', fullName: 'Administrador General', role: 'ADMIN' as const },
     { username: 'recep01', fullName: 'Recepción Uno', role: 'RECEPTIONIST' as const },
+    // AG-04: dedicated account for the MCP agent, so its proposals are always
+    // decided by a different person. Front-desk role: sees every order, no costs (RN-07).
+    { username: 'agente-ia', fullName: 'Agente IA (MCP)', role: 'RECEPTIONIST' as const },
     { username: 'tecnico01', fullName: 'Técnico Uno', role: 'TECHNICIAN' as const },
     { username: 'tecnico02', fullName: 'Técnico Dos', role: 'TECHNICIAN' as const },
     { username: 'cliente01', fullName: 'María Quispe', role: 'CUSTOMER' as const, customerId: customer.id },

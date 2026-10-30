@@ -12,6 +12,8 @@ node_modules
 *.pfx
 .npmrc
 .claude/settings.local.json
+# Audit trail written by the Claude Code MCP hooks (local only)
+.claude/logs/
 
 # Build output and generated code (any package)
 dist/
