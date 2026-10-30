@@ -17,7 +17,7 @@ Las reglas técnicas detalladas (BE-xx, GEN-xx) siguen en [`ai-context/constitut
 - **C2.2** Un cambio de comportamiento actualiza primero la spec (o en el mismo Pull Request). Si el código y la spec discrepan, **gana la spec** y se corrige el código o se enmienda la spec con una decisión explícita.
 - **C2.3** Cada requisito se traza hacia abajo: `plan.md` dice qué parte lo cubre, `tasks.md` qué tarea lo implementó y `specs/verificacion.md` qué test lo comprueba.
 - **C2.4** Las dudas se declaran como `[NECESITA ACLARACIÓN]`; nunca se resuelven en silencio dentro del código (se registran como `SUP-xx`).
-- *Se comprueba:* revisión del Pull Request contra la checklist de la spec; `specs/verificacion.md` sin requisitos "sin cubrir" al cerrar una spec.
+- *Se comprueba:* `npm run sdd:check` (hook pre-commit y job `sdd` de la CI) falla si un requisito de una spec implementada no tiene un test etiquetado `[NNN/RF-x]` o si un test cita un requisito inexistente; la plantilla de Pull Request repite la checklist; `specs/verificacion.md` no deja requisitos sin cubrir al cerrar una spec.
 
 ## 3. Lógica separada de la interfaz HTTP
 

@@ -7,7 +7,9 @@
     "dev": "npm run start:dev --prefix servicio_back",
     "build": "npm run build --prefix servicio_back",
     "test": "npm test --prefix servicio_back",
-    "precommit": "./scripts/hooks/hook-pre-commit.sh"
+    "precommit": "./scripts/hooks/hook-pre-commit.sh",
+    "sdd:check": "node scripts/sdd/check-traceability.mjs servicio_back/unit-tests servicio_back/test",
+    "sdd:report": "node scripts/sdd/check-traceability.mjs --detail servicio_back/unit-tests servicio_back/test > specs/trazabilidad.md"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",
