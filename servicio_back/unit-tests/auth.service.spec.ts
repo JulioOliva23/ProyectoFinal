@@ -18,11 +18,11 @@ describe('AuthService (US-00)', () => {
   const repository = {
     findByUsername: jest.fn(),
     findActiveById: jest.fn(),
+    invalidateSessions: jest.fn(),
   };
   const revocation = {
     findByJti: jest.fn(),
     create: jest.fn(),
-    deleteManyByUser: jest.fn(),
     deleteExpired: jest.fn(),
   };
   const jwt = {
@@ -135,15 +135,33 @@ describe('AuthService (US-00)', () => {
     expect(revocation.deleteExpired).toHaveBeenCalledWith(expect.any(Date));
   });
 
-  it('revokes the whole user family and returns 401 when the refresh token was reused (BE-E10)', async () => {
+  it('ends every session of the user and keeps the denylist when a refresh token is reused [001/RF-2.2]', async () => {
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, jti: 'jti-stolen', exp: 1_000_000 });
     repository.findActiveById.mockResolvedValue(user);
     revocation.findByJti.mockResolvedValue({ jti: 'jti-stolen' });
 
     await expect(service.refresh({ refreshToken: 'stolen-refresh' })).rejects.toThrow(UnauthorizedException);
 
-    expect(revocation.deleteManyByUser).toHaveBeenCalledWith(user.id);
+    expect(repository.invalidateSessions).toHaveBeenCalledWith(user.id);
+    expect(revocation).not.toHaveProperty('deleteManyByUser');
     expect(revocation.create).not.toHaveBeenCalled();
+  });
+
+  it('still runs the password check for an unknown user so the response time does not reveal it [001/RNF-3]', async () => {
+    repository.findByUsername.mockResolvedValue(null);
+
+    await expect(service.login({ username: 'ghost', password: 'whatever' })).rejects.toThrow(UnauthorizedException);
+
+    expect(argon2.verify).toHaveBeenCalledTimes(1);
+  });
+
+  it('still runs the password check for an inactive user [001/RNF-3]', async () => {
+    repository.findByUsername.mockResolvedValue({ ...user, isActive: false });
+    (argon2.verify as jest.Mock).mockResolvedValue(true);
+
+    await expect(service.login({ username: 'recep01', password: 'Servicio2026!' })).rejects.toThrow(UnauthorizedException);
+
+    expect(argon2.verify).toHaveBeenCalledTimes(1);
   });
 
   it('returns 401 when a refresh token has no jti (legacy token, BE-E10)', async () => {
