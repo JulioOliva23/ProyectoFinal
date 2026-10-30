@@ -106,5 +106,5 @@ validar unlockCode según lockType:                                            #
 | Unitario `work-orders.service.spec.ts` | cifra el código y no lo devuelve · rechaza fecha pasada | RF-4, RF-3.4 |
 | Unitario `unlock-code-cipher.spec.ts` | ida y vuelta · IV aleatorio · texto manipulado · clave débil | RF-4.2 |
 | e2e | IMEI inválido rechazado · IMEI formateado se guarda normalizado · el código nunca vuelve en claro | RF-1, RF-4.3 |
-| Pendiente | Atomicidad: fallo a mitad de la transacción no deja datos | RF-2.2 |
-| Pendiente | Transferencia por reventa conserva historial (dueño distinto) | RF-6.3 |
+| Unitario `spec-rules` + e2e `spec-coverage` | una sola transacción; un IMEI en conflicto no deja ningún cliente nuevo | RF-2.2 |
+| e2e `spec-coverage` | el equipo cambia de dueño y conserva sus dos órdenes | RF-6.3 |

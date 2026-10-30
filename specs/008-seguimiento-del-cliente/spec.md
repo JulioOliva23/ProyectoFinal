@@ -82,8 +82,8 @@ Notificaciones automáticas por WhatsApp o correo, códigos QR, que el cliente c
 
 - [x] RF-1 a RF-7 tienen al menos un test que pasa.
 - [x] El límite de intentos se prueba con el sexto intento rechazado.
-- [ ] RF-3.2 (tiempo de respuesta) tiene una medición o un test que lo compruebe.
-- [ ] RF-5.2 tiene un test que compruebe que la respuesta no contiene campos internos.
+- [x] RF-3.2 (tiempo de respuesta) tiene un test que comprueba que ambos caminos ejecutan la verificación.
+- [x] RF-5.2 tiene un test que comprueba que la respuesta no contiene campos internos.
 
 ## 9. Dudas abiertas
 

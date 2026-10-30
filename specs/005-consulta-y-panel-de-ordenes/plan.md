@@ -90,6 +90,6 @@ OVERDUE_STATUSES = ACTIVE_STATUSES − {READY_FOR_DELIVERY}
 | Unitario `work-order-queries.spec.ts` | texto vacío · texto sin número · número fuera de rango · estados activos · "lista para entrega" no se atrasa | RF-2, RF-4.1, RF-4.2 |
 | Unitario `work-orders.service.spec.ts` | técnico limitado a su cola · alcance al buscar · filtros de recepción · conteo de activas · todos los estados con ceros · consulta de atrasadas | RF-1, RF-3, RF-4 |
 | e2e | Ciclo completo consulta la orden por rol | RF-5 |
-| Pendiente | Resumen prohibido a técnico y cliente | RF-4.4 |
-| Pendiente | Página fuera de rango | RF-1.1 |
-| Pendiente | Detalle sin código ni cifrado | RF-5.1 |
+| e2e `spec-coverage` | el resumen responde 403 a técnico y cliente | RF-4.4 |
+| e2e `spec-coverage` | página 999 → lista vacía con el total real | RF-1.1 |
+| Unitario `spec-rules` | el detalle no contiene el código ni su cifrado para ningún rol | RF-5.1 |

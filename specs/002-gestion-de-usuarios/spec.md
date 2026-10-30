@@ -78,7 +78,7 @@ Autorregistro, importación masiva, roles personalizados, borrado definitivo de 
 
 - [x] RF-1 a RF-6 tienen al menos un test que pasa.
 - [x] Una cuenta nunca se borra: solo se desactiva.
-- [ ] Los mensajes de error de este módulo están en español (RNF-3; conflicto con la constitución, C6.2).
+- [x] Los mensajes de error de este módulo están en español (RNF-3, constitución C6.2).
 
 ## 9. Dudas abiertas
 

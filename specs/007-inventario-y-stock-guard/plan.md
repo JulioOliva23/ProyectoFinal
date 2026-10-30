@@ -100,6 +100,6 @@ La reserva y el consumo no tienen ruta propia: los dispara la transición de la 
 | Unitario `spare-parts.service.spec.ts` | costo solo Admin y precios ocultos al técnico · alerta de stock bajo · precios compatibles · repuesto incompatible · inexistente/inactivo · ajuste mayor al disponible · kardex por entrada · no se da de baja con reservas | RF-1.5, RF-2, RF-3, RF-6 |
 | Unitario `inventory-stock-guard.hook.spec.ts` | solo intercepta IN_REPAIR/QC · reserva todo · bloquea listando faltantes · retrabajo sin efecto · consume reservados | RF-5 |
 | e2e | "lets only one of two orders reserve the last unit (RN-09)" · "consumes the reservation when entering quality control" · "shows the part as a low-stock alert (RN-11)" · "forbids a technician from creating spare parts" · "hides prices from technicians (RN-07)" | RF-2, RF-5, RF-6 |
-| Pendiente | SKU inválido y duplicado | RF-1.1 |
-| Pendiente | Modelos compatibles inexistentes | RF-1.6 |
-| Pendiente | Triggers del kardex (`UPDATE`/`DELETE` rechazados) | RF-7.2 |
+| Unitario `dto-limits` | SKU en minúsculas, corto o con símbolos; mínimo fuera de rango; más de 200 modelos | RF-1.1 |
+| Unitario `spec-rules` | modelos compatibles inexistentes → 422 | RF-1.6 |
+| e2e `spec-coverage` | `UPDATE`/`DELETE` sobre `stock_movements` rechazados; CHECK de existencias ante una escritura directa (RF-4.1) | RF-7.2, RF-4.1 |

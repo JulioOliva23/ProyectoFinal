@@ -22,9 +22,12 @@ Leyenda: `[x]` hecha · `[~]` parcial · `[ ]` pendiente.
   Hecho cuando: pasan "regenerates the code, never matching the unlock code, and replaces the hash" y el e2e "invalidates the previous code when a new one is issued".
 - [x] **T10 · Consulta con cuenta de cliente y pertenencia** — RF-7
   Hecho cuando: pasan "answers 404 to a customer probing a foreign order (RN-14)" y el e2e "blocks staff endpoints for customers".
-- [ ] **T11 · Test de igualdad de tiempo de respuesta** — RF-3.2
-  Hecho cuando: la mediana del tiempo con orden inexistente está dentro de un margen razonable de la de código erróneo.
-- [ ] **T12 · Test de lista cerrada de campos del cliente** — RF-5.2
+- [x] **T11 · Test de igualdad de tiempo de respuesta** — RF-3.2
+  Hecho cuando: un número inexistente y un código erróneo ejecutan la misma verificación de hash (no se mide el reloj para evitar pruebas inestables).
+  *Evidencia: `spec-rules.spec` "still verifies a hash when the order number does not exist… [008/RF-3.2]" (ambos caminos ejecutan la verificación).*
+- [x] **T12 · Test de lista cerrada de campos del cliente** — RF-5.2
   Hecho cuando: la respuesta contiene exactamente los campos de la spec y ninguno más.
-- [ ] **T13 · Test de cuenta de cliente sin vínculo** — RF-7.2
+  *Evidencia: unitario y e2e "shows the customer exactly the fields of the spec… [008/RF-5.2]".*
+- [x] **T13 · Test de cuenta de cliente sin vínculo** — RF-7.2
   Hecho cuando: un usuario Cliente sin `customerId` recibe 403 en "mis órdenes".
+  *Evidencia: unitario y e2e "refuses/rejects a customer account that is not linked to a customer [008/RF-7.2]".*

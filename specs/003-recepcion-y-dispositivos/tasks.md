@@ -22,9 +22,11 @@ Leyenda: `[x]` hecha · `[~]` parcial · `[ ]` pendiente.
   Hecho cuando: pasa "returns 404 for an unregistered IMEI lookup" y el e2e de ingreso consulta el historial con 200.
 - [x] **T10 · Catálogo de modelos** — RF-7
   Hecho cuando: pasan los 6 tests de modelos de `devices.service.spec.ts`.
-- [ ] **T11 · Test de atomicidad del ingreso** — RF-2.2
+- [x] **T11 · Test de atomicidad del ingreso** — RF-2.2
   Hecho cuando: un test fuerza un error al crear la orden y comprueba que no quedó cliente nuevo ni equipo nuevo.
-- [ ] **T12 · Test de transferencia por reventa** — RF-6.3
+  *Evidencia: e2e "leaves no customer behind when the intake is rejected [003/RF-2.2]" y unitario de una sola transacción.*
+- [x] **T12 · Test de transferencia por reventa** — RF-6.3
   Hecho cuando: un test ingresa un IMEI conocido con otro documento y el equipo conserva sus órdenes y cambia de dueño.
+  *Evidencia: e2e "moves a resold device to its new owner and keeps its history [003/RF-6.3]".*
 - [ ] **T13 · Política de retención del código de desbloqueo** — duda abierta (SUP-09)
   Hecho cuando: el cliente decide si se borra al entregar y queda como RF en la spec 004.

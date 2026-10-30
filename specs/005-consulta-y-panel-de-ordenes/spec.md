@@ -70,8 +70,8 @@ Exportar a hoja de cálculo, búsqueda por rango de fechas, ordenamiento a elecc
 ## 8. Criterios de finalización
 
 - [x] RF-1 a RF-5 tienen al menos un test que pasa.
-- [ ] RF-5.1 tiene un test que compruebe que el detalle nunca contiene el código ni su cifrado.
-- [ ] RF-1.1 tiene un test de página fuera de rango.
+- [x] RF-5.1 tiene un test que comprueba que el detalle nunca contiene el código ni su cifrado.
+- [x] RF-1.1 tiene un test de página fuera de rango.
 
 ## 9. Dudas abiertas
 

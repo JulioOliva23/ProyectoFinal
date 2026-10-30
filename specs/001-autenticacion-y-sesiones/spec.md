@@ -79,9 +79,9 @@ Recuperación de contraseña por correo, autenticación en dos pasos, inicio de 
 ## 8. Criterios de finalización
 
 - [x] RF-1, RF-3, RF-4, RF-5 y RF-7 tienen al menos un test que pasa.
-- [ ] RF-2.2 se cumple de verdad: tras detectar reutilización, ninguna credencial anterior sirve (hoy **incumplido**, ver el plan, D1).
-- [ ] RF-6.1 tiene un test automatizado.
-- [ ] Un usuario inexistente tarda lo mismo que uno con contraseña incorrecta (RNF-3, plan D2).
+- [x] RF-2.2 se cumple de verdad: tras detectar reutilización, ninguna credencial anterior sirve (corregido el 2026-10-29, ver el plan, D1).
+- [x] RF-6.1 tiene un test automatizado.
+- [x] Un usuario inexistente ejecuta la misma verificación que uno con contraseña incorrecta (RNF-3, plan D2).
 
 ## 9. Dudas abiertas
 

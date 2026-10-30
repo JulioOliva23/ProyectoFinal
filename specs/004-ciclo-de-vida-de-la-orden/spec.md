@@ -116,8 +116,8 @@ Garantías, liquidación y cobro, bahías de trabajo, hallazgos adicionales dura
 
 - [x] RF-1 a RF-9 tienen al menos un test que pasa (RF-10 sin test específico).
 - [x] El historial rechaza `UPDATE` y `DELETE` en la base de datos (test e2e).
-- [ ] RF-9.4 tiene un test que intente modificar el registro de accesos.
-- [ ] RF-2.3 (reasignación tras iniciar la reparación) tiene un test.
+- [x] RF-9.4 tiene un test que intenta modificar el registro de accesos.
+- [x] RF-2.3 (reasignación tras iniciar la reparación) tiene un test.
 
 ## 9. Dudas abiertas
 

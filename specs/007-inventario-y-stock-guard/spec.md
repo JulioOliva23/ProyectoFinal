@@ -84,9 +84,9 @@ Liberación de reservas al cancelar (SUP-08), órdenes de compra a proveedores, 
 ## 8. Criterios de finalización
 
 - [x] RF-1 a RF-7 tienen al menos un test que pasa (salvo los marcados en `specs/verificacion.md`).
-- [x] La competencia por la última unidad se prueba contra una base de datos real (prueba extremo a extremo; hoy sin ejecutar, ver `verificacion.md`).
-- [ ] RF-7.2 tiene un test que intente modificar el kardex.
-- [ ] RF-1.1 tiene un test de validación del SKU.
+- [x] La competencia por la última unidad se prueba contra una base de datos real (prueba extremo a extremo, ejecutada el 2026-10-29).
+- [x] RF-7.2 tiene un test que intenta modificar el kardex.
+- [x] RF-1.1 tiene un test de validación del SKU.
 
 ## 9. Dudas abiertas
 

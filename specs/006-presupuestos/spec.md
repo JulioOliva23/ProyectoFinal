@@ -84,8 +84,8 @@ Descuentos, impuestos, cobro y facturación, firma del cliente, envío automáti
 
 - [x] RF-1 a RF-8 tienen al menos un test que pasa (salvo los marcados en `specs/verificacion.md`).
 - [x] Aprobar con presupuesto vencido falla y lo marca como vencido (unitario y e2e).
-- [ ] RF-3.1 (versiones reemplazadas) tiene un test.
-- [ ] RF-6.1 tiene un test e2e de la cancelación atómica.
+- [x] RF-3.1 (versiones reemplazadas) tiene un test.
+- [x] RF-6.1 tiene un test e2e de la cancelación atómica.
 
 ## 9. Dudas abiertas
 

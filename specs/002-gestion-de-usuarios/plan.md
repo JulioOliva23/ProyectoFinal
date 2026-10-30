@@ -93,6 +93,6 @@ assertActiveTechnician(id):                                     # RF-6
 | Unitario | "stores only the new argon2 hash" | RF-4.1 |
 | Unitario | "deactivates another user logically" · "does not let an admin deactivate their own account" · "answers 404 when the user is already inactive" · "reactivates an inactive user and is idempotent…" | RF-5 |
 | Unitario | "only accepts active technicians as assignees (RN-06)" | RF-6 |
-| Unitario DTO | Validación de usuario y contraseña **sin test dedicado** | RF-1.2, RF-1.3 |
-| Pendiente | Cliente inexistente al crear cuenta de rol Cliente | RF-1.5 |
-| Pendiente | Efecto del reinicio de contraseña sobre sesiones previas (e2e) | RF-4.2 |
+| Unitario `dto-limits` | usuario con mayúsculas/símbolos/2/81 caracteres y contraseñas débiles rechazados | RF-1.2, RF-1.3 |
+| Unitario `spec-rules` | cliente inexistente al crear una cuenta Cliente → 404 | RF-1.5 |
+| e2e `spec-coverage` | tras reiniciar la contraseña, la credencial anterior responde 401 | RF-4.2 |

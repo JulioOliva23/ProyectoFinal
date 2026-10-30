@@ -15,12 +15,16 @@ Leyenda: `[x]` hecha · `[~]` parcial · `[ ]` pendiente.
 - [x] **T6 · Detalle con transiciones permitidas por rol** — RF-5.1
   Hecho cuando: pasa "returns only the transitions the viewer may trigger (FE-08)".
 - [x] **T7 · Límite de 100 caracteres en la búsqueda** — RF-2.5
-  Hecho cuando: el DTO declara el máximo (revisión de `QueryWorkOrdersDto`) *(sin test propio)*.
-- [ ] **T8 · Test: resumen prohibido a técnico y cliente** — RF-4.4
+  Hecho cuando: el DTO declara el máximo y lo prueba la tarea T11.
+- [x] **T8 · Test: resumen prohibido a técnico y cliente** — RF-4.4
   Hecho cuando: dos pruebas e2e reciben 403.
-- [ ] **T9 · Test: página fuera de rango** — RF-1.1
+  *Evidencia: e2e "keeps the dashboard summary away from technicians and customers [005/RF-4.4]".*
+- [x] **T9 · Test: página fuera de rango** — RF-1.1
   Hecho cuando: pedir la página 99 devuelve `data: []` y el `total` correcto.
-- [ ] **T10 · Test: el detalle nunca expone el código** — RF-5.1
+  *Evidencia: e2e "answers a page beyond the last one with an empty list and the real total [005/RF-1.1]".*
+- [x] **T10 · Test: el detalle nunca expone el código** — RF-5.1
   Hecho cuando: la respuesta no contiene `unlockCode` ni `unlockCodeCipher` para ningún rol.
-- [ ] **T11 · Test del límite de 100 caracteres** — RF-2.5
+  *Evidencia: `spec-rules.spec` "never carries the unlock code nor its cipher in the order detail [005/RF-5.1]" (tres roles).*
+- [x] **T11 · Test del límite de 100 caracteres** — RF-2.5
   Hecho cuando: una búsqueda de 101 caracteres responde 400.
+  *Evidencia: `dto-limits.spec` "Order search [005/RF-2.5]" (100 aceptado, 101 rechazado, texto recortado).*

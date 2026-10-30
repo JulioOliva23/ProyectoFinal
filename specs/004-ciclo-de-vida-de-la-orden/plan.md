@@ -104,6 +104,6 @@ Respuesta de una orden: incluye `allowedTransitions` (RF-1.7) y `hasUnlockCode`,
 | Unitario `inventory-stock-guard.hook.spec.ts` | solo intercepta IN_REPAIR/QC · reserva todo · bloquea listando faltantes · retrabajo sin efecto · consume | RF-6 |
 | Unitario `work-orders.service.spec.ts` | técnico no lee ajenas · revela al asignado · no revela a recepción · allowedTransitions por rol | RF-1.7, RF-3, RF-9 |
 | e2e `phone-repair-flow` | diagnóstico exige técnico · APPROVED exige presupuesto · una sola orden toma la última unidad · consumo en QC · técnico no asignado rechazado · flujo hasta DELIVERED con una fila de historial por transición · `UPDATE`/`DELETE` rechazados · DELIVERED terminal · revelado solo al asignado con bitácora | RF-1 a RF-9 |
-| Pendiente | Reasignar tras iniciar reparación → 409 | RF-2.3 |
-| Pendiente | `UPDATE`/`DELETE` sobre `unlock_code_access_logs` rechazado | RF-9.4 |
-| Pendiente | Validación del motivo (3–500) | RF-10 |
+| Unitario `spec-rules` | reasignar tras iniciar la reparación → 409 | RF-2.3 |
+| e2e `spec-coverage` | `UPDATE`/`DELETE` sobre `unlock_code_access_logs` rechazados por el trigger | RF-9.4 |
+| Unitario `dto-limits` | motivo de 2 y 501 caracteres rechazado; 3 a 500 aceptado | RF-10 |

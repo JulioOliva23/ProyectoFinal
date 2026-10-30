@@ -18,14 +18,17 @@ Leyenda: `[x]` hecha · `[~]` parcial · `[ ]` pendiente.
   Hecho cuando: pasan los cuatro tests de desactivación y reactivación.
 - [x] **T8 · Técnico asignable** — RF-6
   Hecho cuando: pasa "only accepts active technicians as assignees (RN-06)".
-- [~] **T9 · Validación de forma de usuario y contraseña** — RF-1.2, RF-1.3
+- [x] **T9 · Validación de forma de usuario y contraseña** — RF-1.2, RF-1.3
   Hecho cuando: existe un test que rechaza un usuario con mayúsculas y una contraseña sin dígito.
-  *Parcial:* la validación existe en el DTO, pero no tiene test propio.
-- [ ] **T10 · Test de cliente inexistente al crear cuenta Cliente** — RF-1.5
+  *Evidencia: `dto-limits.spec` "rejects usernames with uppercase… [002/RF-1.2]" y "rejects weak passwords… [002/RF-1.3]".*
+- [x] **T10 · Test de cliente inexistente al crear cuenta Cliente** — RF-1.5
   Hecho cuando: un test espera 404 al crear una cuenta Cliente con un `customerId` desconocido.
-- [ ] **T11 · Test e2e del reinicio de contraseña** — RF-4.2
+  *Evidencia: `spec-rules.spec` "requires the linked customer of a Cliente account to exist [002/RF-1.5]".*
+- [x] **T11 · Test e2e del reinicio de contraseña** — RF-4.2
   Hecho cuando: tras reiniciar la contraseña, una credencial de renovación anterior responde 401.
-- [ ] **T12 · Mensajes de error en español** — RNF-3
+  *Evidencia: e2e `spec-coverage` "ends the previous sessions of an account when an admin resets its password [002/RF-4.2]".*
+- [x] **T12 · Mensajes de error en español** — RNF-3
   Hecho cuando: los mensajes del módulo están en español y los tests los comprueban.
+  *Evidencia: todos los textos del módulo están en español; `validation-messages.spec` y `all-exceptions.filter.spec` lo comprueban.*
 - [ ] **T13 · Resolver protección del último administrador** — duda abierta
   Hecho cuando: el cliente responde y la regla queda en la spec como RF o como fuera de alcance.

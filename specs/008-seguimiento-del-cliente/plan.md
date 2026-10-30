@@ -104,5 +104,5 @@ requireVisible: si user.role == CUSTOMER y order.customerId != user.customerId �
 | Unitario `work-orders.service.spec.ts` | devuelve el código una vez y guarda solo el hash · solo la vista del cliente · mismo 404 · rechaza órdenes sin hash · regenera distinto del desbloqueo · cliente ajeno recibe 404 | RF-1, RF-3, RF-5, RF-6, RF-7.3 |
 | e2e (bloque SUP-05) | nunca guarda ni devuelve el código en claro (1/5) · vista sin sesión · mismo 404 (2/5, 3/5) · el código anterior queda invalidado (4/5, 5/5) · el sexto intento recibe 429 | RF-1 a RF-4, RF-6 |
 | e2e (cliente) | "lists only status information for the customer" · "blocks staff endpoints for customers" | RF-5, RF-7 |
-| Pendiente | Medición del tiempo de respuesta con y sin orden | RF-3.2 |
-| Pendiente | Respuesta sin campos internos (lista cerrada) | RF-5.2 |
+| Unitario `spec-rules` | un número inexistente ejecuta igualmente la verificación de hash | RF-3.2 |
+| Unitario + e2e | la vista del cliente tiene exactamente 8 campos aunque la fila traiga más | RF-5.2 |

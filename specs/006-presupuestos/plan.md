@@ -107,7 +107,7 @@ Importes como cadenas con dos decimales (`"1130.00"`).
 | Unitario `budgets.service.spec.ts` | aritmética decimal con precios del catálogo · no se arma tras aprobar · enviar mueve la orden a Presupuestado · aprobar es atómico · aprobar vencido falla y marca EXPIRED · rechazar cancela con motivo · solo SENT se decide | RF-1, RF-4 a RF-7 |
 | Unitario `spare-parts.service.spec.ts` | "prices compatible parts…" · "rejects a part that does not fit…" · "rejects unknown or inactive parts" | RF-2 |
 | e2e | "rejects approval of an expired budget" · "does not let technicians read budgets (RN-07)" · flujo completo con presupuesto aprobado | RF-5, RF-7, RF-8.1 |
-| Pendiente | Versiones: la anterior queda `SUPERSEDED` | RF-3.1 |
-| Pendiente | Rechazo cancela la orden (e2e) | RF-6.1 |
-| Pendiente | Validación de límites (0 y 51 líneas, cantidad 0 y 51) | RF-1.1, RF-1.2 |
-| Pendiente | Respuesta sin costo unitario | RF-8.2 |
+| e2e `spec-coverage` + unitario | al enviar una versión nueva la anterior queda `SUPERSEDED` y no se borra | RF-3.1 |
+| e2e `spec-coverage` | rechazar cancela la orden y deja el motivo en español en el historial | RF-6.1 |
+| Unitario `dto-limits` | 0 y 51 líneas, cantidad 0 y 51, descripción corta, precio y repuesto obligatorios según el tipo | RF-1.1, RF-1.2 |
+| e2e `spec-coverage` | la respuesta de un presupuesto con repuestos no contiene `unitCost` | RF-8.2 |

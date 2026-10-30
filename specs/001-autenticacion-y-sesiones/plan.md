@@ -78,7 +78,13 @@ logout(token):                                               # RF-3
 
 | D3 | **RF-7.3 / constitución C7.1:** toda ruta exige un rol explícito | `RolesGuard` devuelve `true` cuando la ruta no declara `@Roles` (cualquier usuario autenticado pasa, incluido un cliente). Hoy solo afecta a `logout` y `profile`, que lo necesitan | **Seguridad, media.** Una ruta nueva sin decorador queda abierta a todos los roles |
 
-Corregirlas es trabajo de las tareas T13, T14 y T15 de [tasks.md](tasks.md); no forma parte de esta redacción retroactiva.
+**Estado (2026-10-29): D1, D2 y D3 corregidas** (tareas T13, T14 y T15 de [tasks.md](tasks.md)).
+
+- D1: la reutilización ahora llama a `invalidateSessions`, que adelanta `updated_at` un segundo; ninguna fila de la lista de denegación se borra.
+- D2: el login verifica un hash ficticio cuando no hay cuenta.
+- D3: `RolesGuard` rechaza toda ruta sin `@Roles` ni `@Public`; `logout` y `profile` declaran todos los roles.
+
+Efecto secundario aceptado: durante ~1 s después de una reutilización detectada, una sesión recién iniciada no puede renovarse.
 
 ## 4. Contrato de uso
 
@@ -108,5 +114,5 @@ Todas las demás rutas exigen `Authorization: Bearer <accessToken>` (RF-7.1).
 | --- | --- | --- |
 | Unitario `auth.service.spec.ts` | Emisión, 401 uniforme, rotación, reutilización, token sin `jti`, logout idempotente, cambio administrativo | RF-1 a RF-5 |
 | e2e `phone-repair-flow.e2e-spec.ts` | Petición sin sesión rechazada y técnico prohibido en ruta de administrador | RF-7 |
-| **Pendiente** | Test e2e del límite de 10 intentos de login | RF-6 |
+| e2e `auth-session` | el 11.º intento fallido recibe 429 con mensaje en español | RF-6 |
 | **Pendiente** | Test e2e que reutiliza una credencial rotada y comprueba que **ninguna** credencial anterior vuelve a servir (el unitario actual solo verifica que se llamó a una función simulada) | RF-2.2 |

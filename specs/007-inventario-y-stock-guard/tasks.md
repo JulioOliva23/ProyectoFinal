@@ -22,12 +22,14 @@ Leyenda: `[x]` hecha · `[~]` parcial · `[ ]` pendiente.
   Hecho cuando: pasan "flags low stock when available <= min stock (RN-11)" y el e2e de alerta.
 - [x] **T10 · Precios y compatibilidad para presupuestos** — RF-2 (spec 006)
   Hecho cuando: pasan "prices compatible parts from the catalog (RN-10)" y "rejects a part that does not fit the device model (RN-10)".
-- [~] **T11 · Triggers de inmutabilidad del kardex** — RF-7.2
+- [x] **T11 · Triggers de inmutabilidad del kardex** — RF-7.2
   Hecho cuando: un test intenta `UPDATE` y `DELETE` sobre `stock_movements` y ambos fallan.
-  *Parcial:* el trigger existe en la migración; solo se prueba la tabla de auditoría de estados.
-- [ ] **T12 · Test de validación del SKU** — RF-1.1
+  *Evidencia: e2e "refuses UPDATE and DELETE on the stock ledger [007/RF-7.2]".*
+- [x] **T12 · Test de validación del SKU** — RF-1.1
   Hecho cuando: SKU en minúsculas, de 2 caracteres y duplicado responden 400/409.
-- [ ] **T13 · Test de modelos compatibles inexistentes** — RF-1.6
+  *Evidencia: `dto-limits.spec` "Spare part catalog [007/RF-1.1]".*
+- [x] **T13 · Test de modelos compatibles inexistentes** — RF-1.6
   Hecho cuando: un alta con un `deviceModelId` desconocido responde 422.
+  *Evidencia: `spec-rules.spec` "rejects compatible device models that do not exist [007/RF-1.6]".*
 - [ ] **T14 · Resolver momento del descuento físico y liberación de reservas** — dudas abiertas
   Hecho cuando: el cliente responde (SUP-02, SUP-08) y la regla queda escrita como RF.

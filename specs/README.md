@@ -10,20 +10,26 @@ Cada carpeta tiene tres archivos:
 | `plan.md` | **Cómo**: módulos, datos (JSON), algoritmos, contrato de uso, decisiones con su alternativa descartada y estrategia de tests, marcando los RF que cubre cada parte |
 | `tasks.md` | Tareas de 20–30 min con `Hecho cuando:`; `[x]` hecha · `[~]` parcial · `[ ]` pendiente |
 
-| Spec | Estado | Hechas | Parciales | Pendientes |
-| --- | --- | --- | --- | --- |
-| [001 · Autenticación y sesiones](001-autenticacion-y-sesiones/spec.md) | Implementada, **con hallazgos** (D1–D3) | 9 | 1 | 5 |
-| [002 · Gestión de usuarios](002-gestion-de-usuarios/spec.md) | Implementada | 8 | 1 | 4 |
-| [003 · Recepción y dispositivos](003-recepcion-y-dispositivos/spec.md) | Implementada | 10 | 0 | 3 |
-| [004 · Ciclo de vida de la orden](004-ciclo-de-vida-de-la-orden/spec.md) | Implementada | 10 | 1 | 4 |
-| [005 · Consulta y panel de órdenes](005-consulta-y-panel-de-ordenes/spec.md) | Implementada | 7 | 0 | 4 |
-| [006 · Presupuestos](006-presupuestos/spec.md) | Implementada | 9 | 1 | 3 |
-| [007 · Inventario y Stock Guard](007-inventario-y-stock-guard/spec.md) | Implementada | 10 | 1 | 3 |
-| [008 · Seguimiento del cliente](008-seguimiento-del-cliente/spec.md) | Implementada | 10 | 0 | 3 |
-| [009 · Cookie protegida](009-sesion-con-cookie-httponly/spec.md) | **Propuesta** (nueva) | 1 | 0 | 9 |
-| [010 · Vencimiento automático de presupuestos](010-vencimiento-automatico-de-presupuestos/spec.md) | **Propuesta** (nueva) | 0 | 0 | 8 |
-| **Total** | | **74** | **5** | **46** |
+| Spec | Estado | Hechas | Pendientes |
+| --- | --- | --- | --- |
+| [001 · Autenticación y sesiones](001-autenticacion-y-sesiones/spec.md) | ✅ Implementada | 14 | 1 (decisión del cliente) |
+| [002 · Gestión de usuarios](002-gestion-de-usuarios/spec.md) | ✅ Implementada | 12 | 1 (decisión del cliente) |
+| [003 · Recepción y dispositivos](003-recepcion-y-dispositivos/spec.md) | ✅ Implementada | 12 | 1 (decisión del cliente) |
+| [004 · Ciclo de vida de la orden](004-ciclo-de-vida-de-la-orden/spec.md) | ✅ Implementada | 14 | 1 (decisión del cliente) |
+| [005 · Consulta y panel de órdenes](005-consulta-y-panel-de-ordenes/spec.md) | ✅ Implementada | 11 | 0 |
+| [006 · Presupuestos](006-presupuestos/spec.md) | ✅ Implementada | 13 | 0 |
+| [007 · Inventario y Stock Guard](007-inventario-y-stock-guard/spec.md) | ✅ Implementada | 13 | 1 (decisión del cliente) |
+| [008 · Seguimiento del cliente](008-seguimiento-del-cliente/spec.md) | ✅ Implementada | 13 | 0 |
+| [009 · Cookie protegida](009-sesion-con-cookie-httponly/spec.md) | **Propuesta** (nueva) | 1 | 9 |
+| [010 · Vencimiento automático de presupuestos](010-vencimiento-automatico-de-presupuestos/spec.md) | **Propuesta** (nueva) | 0 | 8 |
+| **Total** | | **103** | **22** |
 
-El resultado de ejecutar los tests contra cada requisito, los hallazgos y el veredicto están en [verificacion.md](verificacion.md).
+## Cómo se trabaja con SDD en este repositorio
 
-**Regla del proyecto:** si el código y una spec discrepan, gana la spec (constitución C2.2). Un cambio de comportamiento empieza actualizando su `spec.md`.
+1. **Spec primero:** el cambio de comportamiento empieza en el `spec.md` (un `RF-x` con criterios EARS).
+2. **Test después, código al final:** cada test lleva en su título la etiqueta del requisito que prueba, por ejemplo `it('rejects … [001/RF-2.2]')`.
+3. **Verificación automática:** `npm run sdd:check` falla si un requisito o criterio de aceptación de una spec implementada no tiene test, o si un test cita un requisito inexistente. Lo ejecutan el hook pre-commit y el job `sdd` de la CI.
+4. **Tareas con evidencia:** `[x]` en `tasks.md` solo cuando su "Hecho cuando" se cumple y se cita la evidencia.
+5. **Informes:** [verificacion.md](verificacion.md) (resultado de las pruebas y veredicto) y [trazabilidad.md](trazabilidad.md) (requisito → tests, generado con `npm run sdd:report`).
+
+**Regla del proyecto:** si el código y una spec discrepan, gana la spec (constitución C2.2).

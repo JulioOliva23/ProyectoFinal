@@ -90,7 +90,7 @@ Fotos del equipo, firma digital del cliente, segundo IMEI (dual SIM), lectura de
 
 - [x] RF-1 a RF-7 tienen al menos un test que pasa.
 - [x] Ningún test e2e encuentra el código de desbloqueo en claro.
-- [ ] RF-2.2 (atomicidad) tiene un test que provoque un fallo a mitad y compruebe que no queda nada.
+- [x] RF-2.2 (atomicidad) tiene un test que provoca un conflicto a mitad y comprueba que no queda nada.
 
 ## 9. Dudas abiertas
 
