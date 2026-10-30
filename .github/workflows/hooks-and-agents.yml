@@ -29,10 +29,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: servicio_back/package-lock.json
+          cache-dependency-path: |
+            servicio_back/package-lock.json
+            mcp-server/package-lock.json
 
       - name: Install servicio_back
         run: npm ci --prefix servicio_back
+
+      - name: Install mcp-server
+        run: npm ci --prefix mcp-server
 
       - name: Generate Prisma client
         run: npx --prefix servicio_back prisma generate --schema servicio_back/prisma/schema.prisma
@@ -110,3 +115,46 @@ jobs:
             echo
             ./scripts/hooks/test-claude-hooks.sh
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Test MCP lifecycle hooks (PreToolUse / PostToolUse / Stop)
+        run: |
+          set -o pipefail
+          {
+            echo
+            echo "### \`claude-mcp-hook.mjs\` (servidor MCP \`taller\`)"
+            echo '```'
+            node --test scripts/hooks/claude-mcp-hook.test.mjs 2>&1 | grep -E '✔|✖|ℹ (tests|pass|fail)'
+            echo '```'
+            echo "### Skill \`proponer-cambio-estado-ot\` (validación de entrada)"
+            echo '```'
+            node --test .claude/skills/proponer-cambio-estado-ot/scripts/validate-input.test.mjs 2>&1 | grep -E '✔|✖|ℹ (tests|pass|fail)'
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  mcp-server:
+    name: MCP server
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Tests (in-memory MCP client ↔ server)
+        run: |
+          set -o pipefail
+          {
+            echo "## 🔌 MCP server \`taller\`"
+            echo '```'
+            npm test 2>&1 | grep -E '✔|✖|ℹ (tests|pass|fail)'
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - run: npm run build

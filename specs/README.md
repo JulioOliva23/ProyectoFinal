@@ -22,7 +22,8 @@ Cada carpeta tiene tres archivos:
 | [008 · Seguimiento del cliente](008-seguimiento-del-cliente/spec.md) | ✅ Implementada | 13 | 0 |
 | [009 · Cookie protegida](009-sesion-con-cookie-httponly/spec.md) | **Propuesta** (nueva) | 1 | 9 |
 | [010 · Vencimiento automático de presupuestos](010-vencimiento-automatico-de-presupuestos/spec.md) | **Propuesta** (nueva) | 0 | 8 |
-| **Total** | | **103** | **22** |
+| [011 · Propuestas del agente IA](011-propuestas-del-agente-ia/spec.md) | ✅ Implementada (spec primero, 2026-10-30) | 10 | 1 (decisión del cliente) |
+| **Total** | | **113** | **23** |
 
 ## Cómo se trabaja con SDD en este repositorio
 

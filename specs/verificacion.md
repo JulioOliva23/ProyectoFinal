@@ -1,6 +1,6 @@
 # Verificación de las specs del backend
 
-**Fecha:** 2026-10-29 · **Rama:** `feat/sdd-closure` (sobre `main` `af6a107` + specs) · **Constitución:** [docs/constitution.md](../docs/constitution.md)
+**Fecha:** 2026-10-30 · **Rama:** `feat/sdd-closure` (actualizada con `main` `6ecd2f1`, que trae el agente IA, + spec 011) · **Constitución:** [docs/constitution.md](../docs/constitution.md)
 
 Este informe sustituye al de la primera versión, que encontró incumplimientos. Todos los hallazgos se corrigieron en esta rama; el detalle de **qué test prueba cada requisito** se genera solo en [trazabilidad.md](trazabilidad.md).
 
@@ -10,10 +10,10 @@ Este informe sustituye al de la primera versión, que encontró incumplimientos.
 | --- | --- | --- |
 | Tipos | `npx tsc --noEmit` | ✅ sin errores |
 | Lint | `npm run lint` | ✅ sin errores |
-| Unitarias (Jest) | `npx jest` | ✅ **20 suites · 223 tests** |
+| Unitarias (Jest) | `npx jest` | ✅ **22 suites · 244 tests** |
 | e2e (Supertest + PostgreSQL 17 real) | `npm run test:e2e` | ✅ **3 suites · 45 tests** |
 | Build de producción | `npm run build` | ✅ |
-| Trazabilidad spec → test | `npm run sdd:check` | ✅ **57 de 57 requisitos** y **167 de 167 criterios de aceptación** con test etiquetado |
+| Trazabilidad spec → test | `npm run sdd:check` | ✅ **64 de 64 requisitos** y **182 de 182 criterios de aceptación** con test etiquetado |
 
 Observación honesta: en una corrida completa, un test e2e falló una vez y **no pude reproducirlo** en 8 corridas posteriores (5 seguidas y 3 con la máquina cargada). Si reaparece, hay que atraparlo con el log de esa corrida.
 
@@ -42,6 +42,7 @@ Se probó que falla: con una carpeta de tests vacía lista todos los requisitos 
 | 008 Seguimiento del cliente | ✅ Cumplida | lista cerrada de 8 campos; mismo hash verificado exista o no la orden |
 | 009 Cookie protegida | — Propuesta | solo CORS con credenciales (sin test) |
 | 010 Vencimiento automático | — Propuesta | sin implementar |
+| 011 Propuestas del agente IA | ✅ Cumplida | cuatro ojos, vencimiento, candado contra doble ejecución y ejecución con la identidad de quien aprueba; servidor MCP (9) y hooks (17) en la CI |
 
 ## 4. Hallazgos de la primera verificación
 
@@ -76,4 +77,4 @@ Se probó que falla: con una carpeta de tests vacía lista todos los requisitos 
 
 ## 6. Veredicto
 
-**La spec del backend está cumplida.** Las ocho specs implementadas tienen test etiquetado para sus 57 requisitos y sus 167 criterios de aceptación, los 223 unitarios y los 45 e2e pasan, y los seis hallazgos de la primera verificación están corregidos. Quedan pendientes solo las decisiones del cliente y las dos specs propuestas (009 y 010), que no están implementadas a propósito.
+**La spec del backend está cumplida.** Las nueve specs implementadas tienen test etiquetado para sus 64 requisitos y sus 182 criterios de aceptación, los 244 unitarios y los 45 e2e pasan, y los seis hallazgos de la primera verificación están corregidos. Quedan pendientes solo las decisiones del cliente y las dos specs propuestas (009 y 010), que no están implementadas a propósito.

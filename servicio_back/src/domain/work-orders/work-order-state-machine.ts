@@ -63,6 +63,22 @@ export function allowedTransitionsFor(from: WorkOrderStatus, role: UserRole): Wo
   return allowedNextStatuses(from).filter((to) => checkTransition(from, to, role).allowed);
 }
 
+// Roles that may perform from → to (empty when the transition is illegal).
+// Lets a proposal tell who can approve it before anyone tries.
+export function rolesAllowedFor(from: WorkOrderStatus, to: WorkOrderStatus): UserRole[] {
+  return [...(TRANSITIONS[from]?.[to] ?? [])];
+}
+
+// Read-only copy of the transition table, published to agents (MCP resource).
+export function transitionTable(): Record<WorkOrderStatus, Partial<Record<WorkOrderStatus, UserRole[]>>> {
+  return Object.fromEntries(
+    Object.entries(TRANSITIONS).map(([from, targets]) => [
+      from,
+      Object.fromEntries(Object.entries(targets).map(([to, roles]) => [to, [...(roles ?? [])]])),
+    ]),
+  ) as Record<WorkOrderStatus, Partial<Record<WorkOrderStatus, UserRole[]>>>;
+}
+
 export function isWorkOrderStatus(value: string): value is WorkOrderStatus {
   return (Object.values(WorkOrderStatus) as string[]).includes(value);
 }

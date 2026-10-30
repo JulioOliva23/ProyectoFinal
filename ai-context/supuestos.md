@@ -20,6 +20,7 @@ Riesgo: **Alto** (si se refuta, cambia el modelo de datos, la máquina de estado
 | [SUP-08](#sup-08) | Una OT aprobada no se cancela; no hay liberación de reservas | Implementado | Medio | RN-04, RN-09 | E3 / US-15 | US-F07 | [P-11](preguntas-cliente.md#p-11) |
 | [SUP-09](#sup-09) | El código de desbloqueo se cifra (reversible), no se hashea | Implementado | Alto | RN-03 | E1 / US-01, US-07 | US-F03, US-F08 | [P-15](preguntas-cliente.md#p-15), [P-16](preguntas-cliente.md#p-16) |
 | [SUP-10](#sup-10) | Moneda única BOB | Implementado | Bajo | RN-15 | E2 / US-09 | US-F05 | [P-21](preguntas-cliente.md#p-21) |
+| [SUP-11](#sup-11) | Propuestas del agente IA en memoria | Implementado | Bajo | RN-12, AG-01 | — | — | — |
 
 ---
 
@@ -105,12 +106,20 @@ Riesgo: **Alto** (si se refuta, cambia el modelo de datos, la máquina de estado
 
 ---
 
+### SUP-11
+**Propuestas del agente IA en memoria**
+
+- **Supuesto:** las propuestas que el agente crea por el servidor MCP (`/agent-actions`) duran como máximo 15 minutos (AG-02) y la API corre en una sola instancia, así que se guardan en memoria (`AgentActionStore`). Lo que debe durar (la transición ejecutada, quién la aprobó y la justificación del agente) queda en `work_order_status_audits` (RN-12).
+- **Impacto:** si la API se reinicia, se pierden las propuestas sin decidir y el agente tiene que volver a proponerlas.
+- **Si cambia:** con más de una instancia, mover el store a una tabla (`agent_actions`) y el stream a `LISTEN/NOTIFY` de PostgreSQL. La interfaz del store ya aísla ese cambio.
+
 ## Trazabilidad: módulos, reglas y supuestos
 
 | Módulo | Reglas de negocio | Supuestos | Épica |
 | --- | --- | --- | --- |
 | `auth`, `users` | RN-06, RN-07, RN-14 | SUP-07 | [E1](backlog/E1-recepcion-asignacion-y-ciclo-de-la-orden.md) |
 | `work-orders` (+ `work-order-transitions`) | RN-01, RN-03, RN-04, RN-05, RN-06, RN-12, RN-14 | SUP-03, SUP-05, SUP-08, SUP-09 | [E1](backlog/E1-recepcion-asignacion-y-ciclo-de-la-orden.md), [E4](backlog/E4-seguimiento-y-comunicacion-con-el-cliente.md) |
+| `agent-actions` (+ `mcp-server/`) | RN-04, RN-06, RN-12, AG-01–AG-04 | SUP-11 | — |
 | `devices` | RN-02, RN-13 | SUP-01, SUP-06 | [E1](backlog/E1-recepcion-asignacion-y-ciclo-de-la-orden.md) |
 | `budgets` | RN-05, RN-07, RN-08, RN-10, RN-15 | SUP-04, SUP-10 | [E2](backlog/E2-presupuestos-y-aprobacion-del-cliente.md) |
 | `spare-parts` | RN-07, RN-09, RN-10, RN-11, RN-15 | SUP-02, SUP-08 | [E3](backlog/E3-inventario-de-repuestos.md) |

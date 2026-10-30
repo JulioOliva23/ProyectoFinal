@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "proponer-cambio-estado-ot/input",
+  "title": "Entrada de la skill proponer-cambio-estado-ot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "orden",
+    "estadoDestino",
+    "motivo"
+  ],
+  "properties": {
+    "orden": {
+      "type": "string",
+      "description": "UUID de la OT o su número (OT-000123, ot123, 123)",
+      "pattern": "^\\s*((?:OT-?)?0*\\d{1,9}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\\s*$"
+    },
+    "estadoDestino": {
+      "type": "string",
+      "description": "Enum del backend o su etiqueta en español",
+      "anyOf": [
+        {
+          "enum": [
+            "RECEIVED",
+            "IN_DIAGNOSIS",
+            "BUDGETED",
+            "APPROVED",
+            "IN_REPAIR",
+            "QUALITY_CONTROL",
+            "READY_FOR_DELIVERY",
+            "DELIVERED",
+            "CANCELLED"
+          ]
+        },
+        {
+          "enum": [
+            "Ingresado",
+            "En Diagnóstico",
+            "Presupuestado",
+            "Aprobado",
+            "En Reparación",
+            "Control de Calidad",
+            "Listo para Entrega",
+            "Entregado",
+            "Cancelado"
+          ]
+        }
+      ]
+    },
+    "motivo": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 400,
+      "description": "Por qué se pide el cambio. Sin códigos de desbloqueo ni credenciales (RN-03)"
+    }
+  }
+}

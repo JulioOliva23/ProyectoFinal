@@ -12,9 +12,10 @@
 | 008-seguimiento-del-cliente | 7 | 7 | ✅ |
 | 009-sesion-con-cookie-httponly | _propuesta_ | — | exenta hasta que se implemente |
 | 010-vencimiento-automatico-de-presupuestos | _propuesta_ | — | exenta hasta que se implemente |
+| 011-propuestas-del-agente-ia | 7 | 7 | ✅ |
 
-57 de 57 requisitos tienen al menos un test etiquetado.
-167 de 167 criterios de aceptación (RF-n.m) tienen su propio test etiquetado.
+64 de 64 requisitos tienen al menos un test etiquetado.
+182 de 182 criterios de aceptación (RF-n.m) tienen su propio test etiquetado.
 
 ## Requisito → tests
 
@@ -114,4 +115,16 @@
 | RF-5 | `RF-5.2` shows the customer exactly the fields of the spec, even if the row carries more _(spec-rules.spec.ts)_<br>`RF-5.1` lists only status information for the customer _(phone-repair-flow.e2e-spec.ts)_<br>`RF-5.2` shows a customer exactly the fields of the spec and nothing internal _(spec-coverage.e2e-spec.ts)_ |
 | RF-6 | `RF-6.1` regenerates the code, never matching the unlock code, and replaces the hash _(work-orders.service.spec.ts)_<br>`RF-6.2` regenerates the code, never matching the unlock code, and replaces the hash _(work-orders.service.spec.ts)_<br>`RF-6.1` invalidates the previous code when a new one is issued (4/5, 5/5) _(phone-repair-flow.e2e-spec.ts)_ |
 | RF-7 | `RF-7.2` refuses a customer account that is not linked to a customer _(spec-rules.spec.ts)_<br>`RF-7.3` answers 404 to a customer probing a foreign order (RN-14) _(work-orders.service.spec.ts)_<br>`RF-7.1` lists only status information for the customer _(phone-repair-flow.e2e-spec.ts)_<br>`RF-7.4` blocks staff endpoints for customers _(phone-repair-flow.e2e-spec.ts)_<br>`RF-7.2` rejects a customer account that is not linked to a customer _(spec-coverage.e2e-spec.ts)_ |
+
+### 011-propuestas-del-agente-ia
+
+| Requisito | Tests que lo prueban |
+| --- | --- |
+| RF-1 | `RF-1.3` lists the roles allowed for a transition and none for an illegal one _(agent-action-policy.spec.ts)_<br>`RF-1.1` previews a transition without changing anything (dry run) _(agent-actions.service.spec.ts)_<br>`RF-1.2` files a proposal as pending without running the transition (AG-01) _(agent-actions.service.spec.ts)_<br>`RF-1.3` refuses to propose an illegal transition (RN-04) _(agent-actions.service.spec.ts)_ |
+| RF-2 | `RF-2.1` strips markup, control and bidi characters and collapses whitespace _(agent-action-policy.spec.ts)_<br>`RF-2.2` caps the length _(agent-action-policy.spec.ts)_<br>`RF-2.3` refuses a reason that is empty once sanitized (AG-03) _(agent-actions.service.spec.ts)_ |
+| RF-3 | `RF-3.3` allows a different staff member with an accepted role to approve _(agent-action-policy.spec.ts)_<br>`RF-3.1` rejects the account that proposed deciding its own proposal _(agent-action-policy.spec.ts)_<br>`RF-3.4` rejects deciding twice (AG-01) _(agent-action-policy.spec.ts)_<br>`RF-3.2` keeps a technician away from orders not assigned to them (RN-06) _(agent-action-policy.spec.ts)_<br>`RF-3.3` lets a receptionist reject but not approve a repair start (RN-04) _(agent-action-policy.spec.ts)_<br>`RF-3.1` does not let the proposing account approve its own proposal (AG-04) _(agent-actions.service.spec.ts)_<br>`RF-3.4` cannot run the same proposal twice at the same time (AG-01) _(agent-actions.service.spec.ts)_ |
+| RF-4 | `RF-4.1` runs the transition as the approver and records the agent origin in the audit reason (RN-04, RN-12) _(agent-actions.service.spec.ts)_<br>`RF-4.2` keeps the proposal pending with the error when the Stock Guard blocks it (RN-09) _(agent-actions.service.spec.ts)_ |
+| RF-5 | `RF-5.1` rejects an expired proposal (AG-02) _(agent-action-policy.spec.ts)_<br>`RF-5.1` marks a stale proposal as expired when it is read (AG-02) _(agent-actions.service.spec.ts)_ |
+| RF-6 | `RF-6.1` shows technicians only their assigned orders (RN-06) and front desk everything _(agent-action-policy.spec.ts)_<br>`RF-6.1` streams created and updated events only to users who can see the order (RN-06) _(agent-actions.service.spec.ts)_ |
+| RF-7 | `RF-7.1` returns a copy of the table that cannot alter the real one _(agent-action-policy.spec.ts)_ |
 
