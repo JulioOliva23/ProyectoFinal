@@ -2,6 +2,8 @@
 
 API REST del **Sistema de Gestión para Servicio Técnico de Celulares**: recepción de equipos por IMEI, órdenes de trabajo con máquina de estados auditada, presupuestos versionados con aprobación del cliente, inventario de repuestos con Stock Guard y portal de seguimiento para el cliente.
 
+Propuesta de producto, precios y guion de demo: [docs/propuesta-de-producto.md](docs/propuesta-de-producto.md). Backlog e historias: [ai-context/backlog.md](ai-context/backlog.md) (issues en GitHub). Specs: [specs/](specs/README.md).
+
 | Parte | Repositorio | URL desplegada |
 | --- | --- | --- |
 | Base de datos (PostgreSQL 17) | este repo (`servicio_back/prisma`) | Render (`servicio-db`, privada; la usa el backend) |
