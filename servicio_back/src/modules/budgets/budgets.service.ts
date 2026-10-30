@@ -25,9 +25,9 @@ export class BudgetsService {
 
   async create(workOrderId: string, dto: CreateBudgetDto, user: AuthenticatedUser): Promise<BudgetResponseDto> {
     const order = await this.repository.findWorkOrderContext(workOrderId);
-    if (!order) throw new NotFoundException('Work order not found');
+    if (!order) throw new NotFoundException('La orden de trabajo no existe');
     if (!BUDGETABLE.includes(order.status as WorkOrderStatus)) {
-      throw new ConflictException('A budget can only be drafted while the order is IN_DIAGNOSIS or BUDGETED');
+      throw new ConflictException('Solo se puede armar un presupuesto mientras la orden está En diagnóstico o Presupuestada');
     }
 
     // RN-10 + catalog pricing for PART lines.
@@ -67,7 +67,7 @@ export class BudgetsService {
   }
 
   async listForWorkOrder(workOrderId: string): Promise<BudgetResponseDto[]> {
-    if (!(await this.repository.findWorkOrderContext(workOrderId))) throw new NotFoundException('Work order not found');
+    if (!(await this.repository.findWorkOrderContext(workOrderId))) throw new NotFoundException('La orden de trabajo no existe');
     return (await this.repository.listForWorkOrder(workOrderId)).map(toResponse);
   }
 
@@ -83,7 +83,7 @@ export class BudgetsService {
     const now = new Date();
     const saved = await this.repository.runInTransaction(async (transaction) => {
       if (!(await this.repository.changeStatus(transaction, id, BudgetStatus.DRAFT, { status: BudgetStatus.SENT, sentAt: now, expiresAt: this.expiryFrom(now) }))) {
-        throw new ConflictException('Only DRAFT budgets can be sent');
+        throw new ConflictException('Solo se pueden enviar presupuestos en borrador');
       }
       await this.repository.supersedeOthers(transaction, budget.workOrderId, id);
       if (order?.status === WorkOrderStatus.IN_DIAGNOSIS) {
@@ -99,7 +99,7 @@ export class BudgetsService {
     const budget = await this.requireDecidable(id);
     const saved = await this.repository.runInTransaction(async (transaction) => {
       if (!(await this.repository.changeStatus(transaction, id, BudgetStatus.SENT, this.decision(BudgetStatus.APPROVED, dto.channel, user)))) {
-        throw new ConflictException('Budget is no longer awaiting a decision');
+        throw new ConflictException('El presupuesto ya no está esperando una decisión');
       }
       await this.transitions.transitionWithin(transaction, this.transitionRequest(budget.workOrderId, WorkOrderStatus.APPROVED, user));
       return this.repository.findById(id, transaction);
@@ -112,7 +112,7 @@ export class BudgetsService {
     const saved = await this.repository.runInTransaction(async (transaction) => {
       const data = { ...this.decision(BudgetStatus.REJECTED, dto.channel, user), rejectionReason: dto.reason };
       if (!(await this.repository.changeStatus(transaction, id, BudgetStatus.SENT, data))) {
-        throw new ConflictException('Budget is no longer awaiting a decision');
+        throw new ConflictException('El presupuesto ya no está esperando una decisión');
       }
       await this.transitions.transitionWithin(transaction, {
         ...this.transitionRequest(budget.workOrderId, WorkOrderStatus.CANCELLED, user),
@@ -125,18 +125,18 @@ export class BudgetsService {
 
   private async requireDecidable(id: string): Promise<BudgetRow> {
     const budget = await this.require(id);
-    if (budget.status !== BudgetStatus.SENT) throw new ConflictException('Only SENT budgets can be decided');
+    if (budget.status !== BudgetStatus.SENT) throw new ConflictException('Solo se puede decidir sobre presupuestos enviados');
     // RN-08: expired budgets are closed and must be re-issued.
     if (budget.expiresAt.getTime() < Date.now()) {
       await this.repository.markExpired(id);
-      throw new UnprocessableEntityException('RN-08: budget has expired, issue a new version');
+      throw new UnprocessableEntityException('RN-08: el presupuesto venció, emita una nueva versión');
     }
     return budget;
   }
 
   private async require(id: string): Promise<BudgetRow> {
     const budget = await this.repository.findById(id);
-    if (!budget) throw new NotFoundException('Budget not found');
+    if (!budget) throw new NotFoundException('El presupuesto no existe');
     return budget;
   }
 

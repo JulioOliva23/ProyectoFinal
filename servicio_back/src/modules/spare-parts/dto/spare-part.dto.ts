@@ -24,7 +24,7 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
 export class CreateSparePartDto {
   @ApiProperty({ example: 'OLED-IP13-ORIG' })
   @Transform(trim)
-  @Matches(/^[A-Z0-9-]{3,50}$/, { message: 'sku must be 3-50 uppercase letters, digits or dashes' })
+  @Matches(/^[A-Z0-9-]{3,50}$/, { message: 'El SKU debe tener de 3 a 50 caracteres: mayúsculas, dígitos o guiones' })
   sku!: string;
 
   @ApiProperty({ example: 'Pantalla OLED iPhone 13 original' })

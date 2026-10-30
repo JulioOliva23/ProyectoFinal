@@ -56,7 +56,7 @@ class UnlockCodeMatchesLockType implements ValidatorConstraintInterface {
   }
 
   defaultMessage(): string {
-    return 'RN-03: unlockCode does not match lockType (NONE: omit, PIN: 4-16 digits, PATTERN: e.g. 1-5-9-6, PASSWORD: 1-64 chars)';
+    return 'RN-03: el código de desbloqueo no corresponde al tipo de bloqueo (sin bloqueo: omitir; PIN: 4 a 16 dígitos; patrón: por ejemplo 1-5-9-6; contraseña: 1 a 64 caracteres)';
   }
 }
 

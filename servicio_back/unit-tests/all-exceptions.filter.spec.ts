@@ -1,4 +1,12 @@
-import { ArgumentsHost, BadRequestException, HttpStatus, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  BadRequestException,
+  ForbiddenException,
+  HttpStatus,
+  NotFoundException,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { Prisma } from '../src/generated/prisma/client';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 
@@ -41,7 +49,7 @@ describe('AllExceptionsFilter (BE-E14)', () => {
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: expected,
-        message: 'Database operation failed',
+        message: 'La operación en la base de datos falló',
         path: '/api/v1/test',
       }),
     );
@@ -51,7 +59,7 @@ describe('AllExceptionsFilter (BE-E14)', () => {
     const response = capture(new AllExceptionsFilter(), knownRequestError('P2024'));
     expect(response.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(response.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Database operation failed' }),
+      expect.objectContaining({ message: 'La operación en la base de datos falló' }),
     );
   });
 
@@ -60,7 +68,7 @@ describe('AllExceptionsFilter (BE-E14)', () => {
     const response = capture(new AllExceptionsFilter(), init);
     expect(response.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
     expect(response.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Database is unavailable' }),
+      expect.objectContaining({ message: 'La base de datos no está disponible' }),
     );
   });
 
@@ -71,6 +79,19 @@ describe('AllExceptionsFilter (BE-E14)', () => {
     expect(response.json).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'order not found' }),
     );
+  });
+
+  it('translates the built-in Nest messages that reach the client [001/RNF-4]', () => {
+    const cases: Array<[Error, string]> = [
+      [new BadRequestException('Validation failed (uuid is expected)'), 'El identificador no es válido'],
+      [new ForbiddenException('Forbidden resource'), 'No tiene permiso para esta operación'],
+      [new UnauthorizedException('Unauthorized'), 'No autenticado'],
+      [new NotFoundException('Cannot GET /api/v1/nothing'), 'La ruta solicitada no existe'],
+    ];
+    for (const [exception, expected] of cases) {
+      const response = capture(new AllExceptionsFilter(), exception);
+      expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ message: expected }));
+    }
   });
 
   it('exposes whitelisted domain details such as the Stock Guard missing parts (RN-09)', () => {
@@ -91,7 +112,7 @@ describe('AllExceptionsFilter (BE-E14)', () => {
     const response = capture(new AllExceptionsFilter(), exception);
     expect(response.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(response.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Internal server error' }),
+      expect.objectContaining({ message: 'Error interno del servidor' }),
     );
   });
 
@@ -99,7 +120,7 @@ describe('AllExceptionsFilter (BE-E14)', () => {
     const response = capture(new AllExceptionsFilter(), new Error('boom'));
     expect(response.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(response.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Internal server error' }),
+      expect.objectContaining({ message: 'Error interno del servidor' }),
     );
   });
 });

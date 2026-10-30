@@ -27,6 +27,20 @@ function pickExposedDetails(body: object): ExposedDetails {
   return details;
 }
 
+// Messages written by Nest itself (guards, pipes, router, throttler) arrive in
+// English; they are translated here so every response is in Spanish (C6.2).
+const BUILT_IN_MESSAGES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^Validation failed \(.*uuid.*\)/i, 'El identificador no es válido'],
+  [/^Forbidden resource$/i, 'No tiene permiso para esta operación'],
+  [/^Unauthorized$/i, 'No autenticado'],
+  [/^Cannot (GET|POST|PUT|PATCH|DELETE) /, 'La ruta solicitada no existe'],
+  [/Too Many Requests/i, 'Demasiadas solicitudes, espere un minuto'],
+];
+
+function translateBuiltIn(message: string): string {
+  return BUILT_IN_MESSAGES.find(([pattern]) => pattern.test(message))?.[1] ?? message;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -35,21 +49,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message: string | string[] = 'Internal server error';
+    let message: string | string[] = 'Error interno del servidor';
     let details: ExposedDetails = {};
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
-      message =
-        typeof body === 'string' ? body : ((body as { message?: string | string[] }).message ?? message);
+      const raw = typeof body === 'string' ? body : ((body as { message?: string | string[] }).message ?? message);
+      message = Array.isArray(raw) ? raw.map(translateBuiltIn) : translateBuiltIn(raw);
       if (typeof body === 'object' && body !== null) details = pickExposedDetails(body);
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       status = PRISMA_ERROR_STATUS[exception.code] ?? HttpStatus.INTERNAL_SERVER_ERROR;
-      message = 'Database operation failed';
+      message = 'La operación en la base de datos falló';
     } else if (exception instanceof Prisma.PrismaClientInitializationError) {
       status = HttpStatus.SERVICE_UNAVAILABLE;
-      message = 'Database is unavailable';
+      message = 'La base de datos no está disponible';
     }
 
     response.status(status).json({

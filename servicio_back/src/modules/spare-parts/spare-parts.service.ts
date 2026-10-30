@@ -46,7 +46,7 @@ export class SparePartsService {
   async deactivate(id: string): Promise<SparePartResponseDto> {
     const part = await this.requireActive(id);
     if (part.reservedStock > 0) {
-      throw new UnprocessableEntityException('Cannot deactivate a part with units reserved for work orders');
+      throw new UnprocessableEntityException('No se puede dar de baja un repuesto con unidades reservadas para órdenes');
     }
     return toResponse(await this.repository.deactivate(id), UserRole.ADMIN);
   }
@@ -69,7 +69,7 @@ export class SparePartsService {
         await this.repository.increase(transaction, id, dto.delta);
       } else if (!(await this.repository.decrease(transaction, id, -dto.delta))) {
         // RN-11: reserved units belong to work orders and cannot be written off.
-        throw new UnprocessableEntityException('RN-11: adjustment exceeds the available (unreserved) stock');
+        throw new UnprocessableEntityException('RN-11: el ajuste excede el stock disponible (no reservado)');
       }
       await this.repository.recordMovement(transaction, {
         sparePartId: id,
@@ -88,11 +88,11 @@ export class SparePartsService {
   async priceCompatibleParts(partIds: string[], deviceModelId: string): Promise<Map<string, PricedPart>> {
     const unique = [...new Set(partIds)];
     const parts = await this.repository.findActiveMany(unique);
-    if (parts.length !== unique.length) throw new UnprocessableEntityException('Spare part not found or inactive');
+    if (parts.length !== unique.length) throw new UnprocessableEntityException('El repuesto no existe o está dado de baja');
     const incompatible = parts.filter((part) => !part.compatibilities.some((c) => c.deviceModelId === deviceModelId));
     if (incompatible.length > 0) {
       throw new UnprocessableEntityException({
-        message: 'RN-10: spare part is not compatible with this device model',
+        message: 'RN-10: el repuesto no es compatible con este modelo de equipo',
         sparePartIds: incompatible.map((part) => part.id),
       });
     }
@@ -101,13 +101,13 @@ export class SparePartsService {
 
   private async requireActive(id: string): Promise<SparePartRow> {
     const part = await this.repository.findActive(id);
-    if (!part) throw new NotFoundException('Spare part not found');
+    if (!part) throw new NotFoundException('El repuesto no existe');
     return part;
   }
 
   private async assertModelsExist(ids: string[]): Promise<void> {
     if (ids.length > 0 && (await this.repository.countExistingModels(ids)) !== ids.length) {
-      throw new UnprocessableEntityException('One or more device models do not exist');
+      throw new UnprocessableEntityException('Uno o más modelos de equipo no existen');
     }
   }
 }

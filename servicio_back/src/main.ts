@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { createValidationPipe } from './common/validation/validation-messages';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
@@ -24,11 +24,7 @@ async function bootstrap(): Promise<void> {
 
   // BE-11: strict global validation pipe.
   app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
+    createValidationPipe(),
   );
 
   // Run onModuleDestroy on SIGTERM/SIGINT so PrismaService closes its

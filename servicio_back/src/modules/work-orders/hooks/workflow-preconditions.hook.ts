@@ -22,7 +22,7 @@ export class WorkflowPreconditionsHook implements WorkOrderTransitionHook {
   async handle(context: WorkOrderTransitionContext, transaction: Prisma.TransactionClient): Promise<void> {
     if (context.to === WorkOrderStatus.IN_DIAGNOSIS) {
       if (!(await this.workOrders.hasTechnician(transaction, context.workOrderId))) {
-        throw new UnprocessableEntityException('RN-06: assign a technician before starting the diagnosis');
+        throw new UnprocessableEntityException('RN-06: asigne un técnico antes de iniciar el diagnóstico');
       }
       return;
     }
@@ -30,8 +30,8 @@ export class WorkflowPreconditionsHook implements WorkOrderTransitionHook {
     if (!(await this.workOrders.hasBudgetInStatus(transaction, context.workOrderId, required))) {
       throw new UnprocessableEntityException(
         context.to === WorkOrderStatus.BUDGETED
-          ? 'RN-05: send a budget to the customer to mark the order as budgeted'
-          : 'RN-05: the customer must approve the budget through the budget approval endpoint',
+          ? 'RN-05: envíe un presupuesto al cliente para marcar la orden como presupuestada'
+          : 'RN-05: el cliente debe aprobar el presupuesto antes de aprobar la orden',
       );
     }
   }

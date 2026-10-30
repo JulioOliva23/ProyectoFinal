@@ -1,9 +1,10 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { createValidationPipe } from '../src/common/validation/validation-messages';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 // Full lifecycle over the real AppModule + PostgreSQL: RBAC, IMEI Luhn,
@@ -86,7 +87,7 @@ describe('Phone repair flow (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalPipes(createValidationPipe());
     app.setGlobalPrefix('api/v1');
     await app.init();
     prisma = app.get(PrismaService);
@@ -151,7 +152,7 @@ describe('Phone repair flow (e2e)', () => {
     it('rejects an IMEI that fails Luhn', async () => {
       const bad = imei(900).slice(0, 14) + String((Number(imei(900)[14]) + 1) % 10);
       const response = await http().post('/api/v1/work-orders').set(as('recep')).send(intake(900, { device: { imei: bad, deviceModelId: modelId } })).expect(400);
-      expect(JSON.stringify(response.body.message)).toContain('Luhn');
+      expect(JSON.stringify(response.body.message)).toContain('dígito verificador válido');
     });
 
     it('accepts a formatted IMEI and stores it normalized', async () => {
@@ -204,7 +205,8 @@ describe('Phone repair flow (e2e)', () => {
       winnerId = results[0].status === 200 ? first : second;
       loserId = winnerId === first ? second : first;
       const loser = results.find((response) => response.status === 422);
-      expect(JSON.stringify(loser?.body)).toContain('insufficient stock');
+      expect(JSON.stringify(loser?.body)).toContain('INSUFFICIENT_STOCK');
+      expect(JSON.stringify(loser?.body)).toContain('no hay stock suficiente');
 
       const part = await prisma.sparePart.findUniqueOrThrow({ where: { id: scarcePartId } });
       expect(part).toMatchObject({ physicalStock: 1, reservedStock: 1, availableStock: 0 });
